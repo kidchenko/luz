@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>luz</id>
+    <version>0.0.1</version>
+    <packageSourceUrl>https://github.com/kidchenko/luz/tree/main/packaging/choco</packageSourceUrl>
+    <owners>kidchenko</owners>
+    <title>Luz</title>
+    <authors>kidchenko</authors>
+    <projectUrl>https://github.com/kidchenko/luz</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/kidchenko/luz/main/assets/icon-256.png</iconUrl>
+    <licenseUrl>https://github.com/kidchenko/luz/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/kidchenko/luz</projectSourceUrl>
+    <bugTrackerUrl>https://github.com/kidchenko/luz/issues</bugTrackerUrl>
+    <tags>luz flux f.lux night-light blue-light color-temperature screen tray utility</tags>
+    <summary>Warm your screen at night, from the tray, like f.lux</summary>
+    <description><![CDATA[
+A sun in the notification area that turns your screen's colour warmer after
+sunset and back to daylight in the morning, like f.lux.
+
+* Sunrise and sunset for where you are, guessed from your time zone: no
+  location prompt, nothing over the network.
+* Daytime, sunset and bedtime colours, down to 1200 K, with slow or fast fades.
+* Bedtime mode: warmer still before you sleep, held until you wake.
+* Pause for an hour or until sunrise, or nudge it warmer, cooler or dimmer.
+* f.lux's keyboard shortcuts: Alt+End, Alt+PgUp/PgDn, Alt+Shift+PgUp/PgDn.
+* Lifts Windows' limit on how warm the screen may go, as f.lux does.
+
+One small executable, nothing else to install.
+]]></description>
+    <releaseNotes>https://github.com/kidchenko/luz/releases</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

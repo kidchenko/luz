@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luz: warm your screen at night</title>
+<meta name="description" content="A sun in the tray that turns your screen warm after sunset and back to daylight in the morning, like f.lux, for Windows and macOS. Free and open source.">
+<link rel="icon" href="img/icon-256.png" type="image/png">
+
+<meta property="og:title" content="Luz: warm your screen at night">
+<meta property="og:description" content="Like f.lux, in one small app: your screen follows the sun. For Windows and macOS.">
+<meta property="og:image" content="https://josebarbosa.dev/luz/img/icon-256.png">
+<meta property="og:url" content="https://josebarbosa.dev/luz/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+
+<style>
+  /* Dusk, from the app icon: night indigo, with the setting sun's amber as
+     the one accent, the colour the screen turns. */
+  :root {
+    --bg:      #14122e;
+    --raised:  #1e1b40;
+    --line:    #332e5e;
+    --text:    #f5f0ff;
+    --dim:     #c3bbe0;
+    --faint:   #8a83ad;
+    --accent:  #f4a64a;
+    --on-acc:  #2a1505;
+    --menu-bg: #2b2b2b;
+    --menu-tx: #f2f2f2;
+    --menu-dim:#9a9a9a;
+    --menu-hl: #3d3d3d;
+    --radius:  14px;
+    --measure: 46rem;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg:     #faf6f0;
+      --raised: #f1eae0;
+      --line:   #e0d5c6;
+      --text:   #221b3a;
+      --dim:    #5b5275;
+      --faint:  #8c8399;
+      --accent: #c2631a;
+      --on-acc: #fff8ef;
+      --menu-bg:#f9f9f9;
+      --menu-tx:#1b1b1b;
+      --menu-dim:#7a7a7a;
+      --menu-hl:#e8e8e8;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.65 "Segoe UI Variable Text", "Segoe UI", system-ui,
+          -apple-system, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--measure); margin: 0 auto; padding: 0 20px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-family: "Cascadia Code", Consolas, ui-monospace, monospace;
+    font-size: .88em;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: .12em .42em;
+    white-space: nowrap;
+  }
+  kbd {
+    font: 600 .82em "Cascadia Code", Consolas, ui-monospace, monospace;
+    background: var(--raised); border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 6px; padding: .1em .45em; white-space: nowrap;
+  }
+
+  /* ------------------------------------------------------------------ hero */
+  header.wrap { text-align: center; padding-top: 84px; padding-bottom: 8px; }
+  header img.mark { width: 128px; height: 128px; filter: drop-shadow(0 18px 36px rgba(0,0,0,.35)); }
+  h1 {
+    font-size: clamp(2.7rem, 9vw, 4.2rem);
+    font-weight: 700;
+    letter-spacing: -.03em;
+    line-height: 1.04;
+    margin: 26px 0 0;
+  }
+  .tagline { font-size: clamp(1.12rem, 3.6vw, 1.45rem); color: var(--dim); margin: 14px auto 0; max-width: 30ch; }
+
+  .cta { margin: 36px 0 0; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .download {
+    display: inline-block;
+    font-weight: 650;
+    font-size: 1.04rem;
+    padding: 14px 28px;
+    border-radius: 11px;
+    background: var(--accent);
+    color: var(--on-acc);
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .download:hover { text-decoration: none; transform: translateY(-1px); filter: brightness(1.07); }
+  .download.ghost, .os-mac .dl-win {
+    background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--line);
+  }
+  .os-mac .dl-mac { background: var(--accent); color: var(--on-acc); box-shadow: none; order: -1; }
+  .alt { margin: 18px 0 0; color: var(--faint); font-size: .94rem; }
+  .for-mac { display: none; }
+  .os-mac .for-win { display: none; }
+  .os-mac .for-mac { display: block; }
+
+  /* --------------------------------------------------------------- the demo */
+  .demo { margin: 64px auto 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .stage { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
+  /* A page as it'd look on screen, tinted the way the gamma ramp would. */
+  .screen {
+    position: relative; overflow: hidden; border-radius: 12px; min-height: 236px;
+    background: #fff; color: #1d1d1f; padding: 18px 20px;
+    font: 14px/1.5 Georgia, "Times New Roman", serif;
+    box-shadow: 0 24px 60px rgba(0,0,0,.42), 0 0 0 1px rgba(127,127,127,.18);
+  }
+  .screen h3 { font: 700 1.05rem/1.25 system-ui, sans-serif; margin: 0 0 6px; }
+  .screen p { margin: 0 0 8px; }
+  .screen .pic { height: 46px; border-radius: 8px; margin: 10px 0 0;
+    background: linear-gradient(90deg, #3b82f6, #22c55e 45%, #eab308 70%, #ef4444); }
+  .screen .tint { position: absolute; inset: 0; mix-blend-mode: multiply; pointer-events: none;
+    transition: background-color .25s ease; }
+  .menu {
+    width: 290px;
+    background: var(--menu-bg);
+    color: var(--menu-tx);
+    border-radius: 10px;
+    padding: 6px;
+    font: 14px/1.2 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    box-shadow: 0 24px 60px rgba(0,0,0,.42), 0 0 0 1px rgba(127,127,127,.18);
+    text-align: left;
+    user-select: none;
+  }
+  .menu .row {
+    display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 4px;
+    padding: 7px 10px; border-radius: 6px; cursor: default;
+  }
+  .menu button.row { all: unset; display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 4px;
+    padding: 7px 10px; border-radius: 6px; cursor: pointer; width: 100%; box-sizing: border-box; }
+  .menu button.row:hover, .menu button.row:focus-visible { background: var(--menu-hl); }
+  .menu .head { color: var(--menu-dim); }
+  .menu .head b { color: var(--menu-tx); font-weight: 600; }
+  .menu .key { color: var(--menu-dim); font-size: 12px; }
+  .menu .sep { height: 1px; background: rgba(127,127,127,.25); margin: 5px 8px; }
+  .menu .arrow { color: var(--menu-dim); font-size: 12px; }
+
+  .clock { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
+    background: #1f1f1f; color: #e6e6e6; border-radius: 10px; padding: 8px 14px; font-size: 13px;
+    box-shadow: 0 0 0 1px rgba(127,127,127,.2); }
+  .clock img { width: 24px; height: 24px; display: block; }
+  .clock input { width: 100%; accent-color: #f4a64a; }
+  .clock output { font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+  .hint { color: var(--faint); font-size: .86rem; margin: 0; text-align: center; }
+
+  @media (max-width: 640px) {
+    .stage { grid-template-columns: 1fr; }
+    .menu { width: 100%; }
+  }
+
+  /* ------------------------------------------------------------- sections */
+  section { padding: 76px 0 0; }
+  h2 { font-size: clamp(1.6rem, 5vw, 2.1rem); letter-spacing: -.02em; line-height: 1.15; margin: 0 0 10px; }
+  .lede { color: var(--dim); margin: 0 0 28px; max-width: 42ch; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr)); gap: 14px; }
+  .card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 20px 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.04rem; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--dim); font-size: .95rem; line-height: 1.55; }
+
+  .faces { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 14px; }
+  .face { display: flex; gap: 14px; align-items: center;
+    background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .face .chip { flex: none; width: 52px; height: 52px; border-radius: 10px; background: #1f1f1f;
+    display: grid; place-items: center; }
+  .face .chip img { width: 34px; height: 34px; }
+  .face b { display: block; font-size: .98rem; }
+  .face span { color: var(--dim); font-size: .9rem; line-height: 1.4; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .96rem; }
+  td { padding: 12px 0; border-top: 1px solid var(--line); vertical-align: top; }
+  td:first-child { color: var(--dim); width: 34%; padding-right: 16px; }
+  tr:last-child td { border-bottom: 1px solid var(--line); }
+
+  .how { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 22px 6px; }
+  .how p { margin: 0 0 16px; color: var(--dim); }
+  .how p b { color: var(--text); font-weight: 600; }
+
+  footer { padding: 84px 0 56px; color: var(--faint); font-size: .9rem; text-align: center; }
+  footer a { color: var(--dim); }
+
+  @media (max-width: 520px) {
+    header.wrap { padding-top: 56px; }
+    td:first-child { width: 40%; }
+    code { white-space: normal; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <img class="mark" src="img/icon-256.png" alt="" width="128" height="128">
+  <h1>Luz</h1>
+  <p class="tagline">Warm your screen at night, from the tray. Like f.lux.</p>
+
+  <div class="cta">
+    <a class="download dl-win" href="https://github.com/kidchenko/luz/releases/latest/download/Luz-Setup.exe">Download for Windows</a>
+    <a class="download ghost dl-mac" href="https://github.com/kidchenko/luz/releases/latest/download/Luz.dmg">Download for macOS</a>
+  </div>
+  <p class="alt for-win">or <code>winget install kidchenko.Luz</code> or <code>choco install luz</code></p>
+  <p class="alt for-mac">or <code>brew install --cask kidchenko/tap/luz</code></p>
+</header>
+
+<div class="wrap demo" aria-label="Preview of Luz through a day">
+  <div class="stage">
+    <div class="screen" aria-hidden="true">
+      <h3>An evening of reading</h3>
+      <p>After sunset the page turns from daylight white to the colour of a lamp, so slowly you won't see it happen.</p>
+      <p>With Bedtime mode on, it goes warmer still before you sleep, then comes back when you wake.</p>
+      <div class="pic"></div>
+      <div class="tint" id="tint"></div>
+    </div>
+    <div class="menu" role="menu">
+      <div class="row head"><span id="glyph">☀</span><b id="status">Daytime · 6500 K</b><span></span></div>
+      <div class="row head"><span></span><span id="detail">Sunset at 17:55</span><span></span></div>
+      <div class="sep"></div>
+      <button class="row" id="pause" role="menuitem"><span>❙❙</span><span id="pause-label">Pause for an hour</span><span class="key">Alt+End</span></button>
+      <div class="sep"></div>
+      <button class="row" data-nudge="20" role="menuitem"><span>🔥</span><span>Warmer</span><span class="key">Alt+Shift+PgDn</span></button>
+      <button class="row" data-nudge="-20" role="menuitem"><span>❄</span><span>Cooler</span><span class="key">Alt+Shift+PgUp</span></button>
+      <div class="sep"></div>
+      <div class="row"><span></span><span>Colours</span><span class="arrow">›</span></div>
+      <div class="row"><span></span><span>Settings</span><span class="arrow">›</span></div>
+      <div class="sep"></div>
+      <div class="row"><span></span><span>Quit Luz</span><span></span></div>
+    </div>
+  </div>
+  <label class="clock">
+    <img id="face" src="img/glyph-day.png" alt="">
+    <input id="time" type="range" min="0" max="1439" step="1" value="840" aria-label="Time of day">
+    <output id="clock" for="time">14:00</output>
+  </label>
+  <p class="hint">Drag through the day. The sun sets at 17:55 here, and bedtime is 23:00.</p>
+</div>
+
+<main class="wrap">
+  <section>
+    <h2>What it does</h2>
+    <p class="lede">Blue light at night keeps you up. Luz takes it out of your screen once the sun goes down, and puts it back in the morning.</p>
+    <div class="grid">
+      <div class="card"><h3>Follows the sun</h3><p>Warm from sunset, daylight from sunrise, worked out for where you are every day of the year.</p></div>
+      <div class="card"><h3>Knows where you are</h3><p>From your time zone's city. No location prompt, and nothing goes over the network.</p></div>
+      <div class="card"><h3>Bedtime mode</h3><p>Warmer still before you sleep, and mornings that wait for your alarm, not a 5 a.m. dawn.</p></div>
+      <div class="card"><h3>f.lux's colours</h3><p>Daylight, Halogen, Incandescent, Candle, Ember: down to 1200 K, with slow or fast fades.</p></div>
+      <div class="card"><h3>f.lux's shortcuts</h3><p><kbd>Alt+End</kbd> to pause, <kbd>Alt+PgUp</kbd>/<kbd>PgDn</kbd> to dim, with <kbd>Shift</kbd> for warmer and cooler.</p></div>
+      <div class="card"><h3>Pause when it matters</h3><p>An hour of true colour for a photo or a design, or off until sunrise.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Reading the sun</h2>
+    <p class="lede">One look at the tray tells you where the day is. On Windows it's filled with the colour your screen is turning.</p>
+    <div class="faces">
+      <div class="face"><div class="chip"><img src="img/glyph-day.png" alt=""></div><div><b>Daytime</b><span>Your screen as it always is.</span></div></div>
+      <div class="face"><div class="chip"><img src="img/glyph-evening.png" alt=""></div><div><b>Evening</b><span>After sunset. Warm.</span></div></div>
+      <div class="face"><div class="chip"><img src="img/glyph-bedtime.png" alt=""></div><div><b>Bedtime</b><span>Warmer still, until you wake.</span></div></div>
+      <div class="face"><div class="chip"><img src="img/glyph-paused.png" alt=""></div><div><b>Paused</b><span>True colour, for now.</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Nothing drawn on top</h2>
+    <div class="how">
+      <p>Luz doesn't lay a coloured window over your screen. It sets the screen's <b>gamma ramp</b>, the table your graphics card runs every colour through on its way out, with <b>SetDeviceGammaRamp</b> on Windows and <b>CGSetDisplayTransferByTable</b> on macOS. Screenshots and recordings keep their true colours.</p>
+      <p>A calibrated screen keeps its calibration: Luz tints the curve that's there and puts it back when you quit.</p>
+      <p>Windows normally stops ramps at about 3000 K. The installer lifts that limit the way f.lux does, so Candle and Ember work too.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Install</h2>
+    <table>
+      <tr><td>Windows installer</td><td><a href="https://github.com/kidchenko/luz/releases/latest/download/Luz-Setup.exe">Luz-Setup.exe</a></td></tr>
+      <tr><td>winget</td><td><code>winget install kidchenko.Luz</code></td></tr>
+      <tr><td>Chocolatey</td><td><code>choco install luz</code></td></tr>
+      <tr><td>macOS</td><td><a href="https://github.com/kidchenko/luz/releases/latest/download/Luz.dmg">Luz.dmg</a> (Apple silicon and Intel)</td></tr>
+      <tr><td>Homebrew</td><td><code>brew install --cask kidchenko/tap/luz</code></td></tr>
+    </table>
+    <p class="alt" style="text-align:left">Windows 10 or later, or macOS 11 or later. It's under 1 MB and needs nothing else installed. Coming from f.lux? Quit it first, so the two don't take turns.</p>
+  </section>
+</main>
+
+<footer class="wrap">
+  Made by <a href="https://github.com/kidchenko">kidchenko</a>. MIT licensed.
+  <a href="https://github.com/kidchenko/luz">Source</a> and
+  <a href="https://github.com/kidchenko/luz/releases">releases</a> on GitHub.
+</footer>
+
+<script>
+  // Lead with the visitor's platform. Without script both buttons still work.
+  try {
+    var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+    if (/mac/i.test(p)) document.body.classList.add("os-mac");
+  } catch (e) {}
+
+  // The demo: the app's schedule and colour maths (src/schedule.rs,
+  // src/color.rs), for one made-up day.
+  (function () {
+    var RISE = 6 * 60 + 10, SET = 17 * 60 + 55, BED = 23 * 60, WAKE = 7 * 60, FADE = 60;
+    var K = { day: 6500, sunset: 3400, bedtime: 1900 };
+    var nudge = 0, paused = false;
+    var $ = function (id) { return document.getElementById(id); };
+
+    function blackbody(t) {
+      var u = (0.860117757 + 1.54118254e-4 * t + 1.28641212e-7 * t * t) / (1 + 8.42420235e-4 * t + 7.08145163e-7 * t * t);
+      var v = (0.317398726 + 4.22806245e-5 * t + 4.20481691e-8 * t * t) / (1 - 2.89741816e-5 * t + 1.61456053e-7 * t * t);
+      var d = 2 * u - 8 * v + 4, x = 3 * u / d, y = 2 * v / d;
+      var X = x / y, Z = (1 - x - y) / y;
+      return [3.2406 * X - 1.5372 - 0.4986 * Z, -0.9689 * X + 1.8758 + 0.0415 * Z, 0.0557 * X - 0.2040 + 1.0570 * Z];
+    }
+    var white = blackbody(6500);
+    function gains(k) {
+      var c = blackbody(k), rel = c.map(function (v, i) { return Math.max(0, v / white[i]); });
+      var top = Math.max.apply(null, rel);
+      return rel.map(function (v) { return Math.pow(v / top, 1 / 2.2); });
+    }
+    function mix(a, b, t) { t = Math.min(1, Math.max(0, t)); return 1e6 / (1e6 / a + (1e6 / b - 1e6 / a) * t); }
+    function ramp(s) { return Math.min(1, Math.max(0, s / FADE)); }
+    function ahead(from, to) { return ((to - from) % 1440 + 1440) % 1440; }
+    function hhmm(m) { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(m / 60 | 0).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); }
+
+    function plan(m) {
+      var start = Math.max(RISE, WAKE);
+      var d = m < start ? 0 : ramp(m - start) * (1 - ramp(m - SET));
+      var len = ahead(BED, WAKE), since = ahead(BED, m);
+      var b = since < len ? ramp(since) : 1 - ramp(ahead(WAKE, m));
+      var phase = b >= 0.5 ? "bedtime" : d >= 0.5 ? "day" : "evening";
+      return { k: mix(mix(K.sunset, K.day, d), K.bedtime, b), phase: phase };
+    }
+    function next(m, phase) {
+      var events = [["Morning", WAKE], ["Sunset", SET], ["Bedtime", BED]]
+        .sort(function (a, b) { return ahead(m, a[1]) - ahead(m, b[1]); });
+      for (var i = 0; i < events.length; i++) {
+        if (ahead(m, events[i][1]) > 0 && plan((events[i][1] + FADE + 1) % 1440).phase !== phase) return events[i];
+      }
+      return events[0];
+    }
+
+    var names = { day: "Daytime", evening: "Evening", bedtime: "Bedtime" };
+    var glyphs = { day: "☀", evening: "◒", bedtime: "☾" };
+    function paint() {
+      var m = +$("time").value, p = plan(m);
+      var k = paused ? 6500 : Math.min(6500, Math.max(1200, 1e6 / (1e6 / p.k + nudge)));
+      var g = gains(k).map(function (v) { return Math.round(v * 255); });
+      $("tint").style.backgroundColor = "rgb(" + g.join(",") + ")";
+      $("clock").textContent = hhmm(m);
+      $("face").src = "img/glyph-" + (paused ? "paused" : p.phase) + ".png";
+      $("glyph").textContent = paused ? "❙❙" : glyphs[p.phase];
+      $("status").textContent = paused ? "Paused" : names[p.phase] + " · " + Math.round(k / 10) * 10 + " K";
+      var n = next(m, p.phase);
+      $("detail").textContent = paused ? "Until " + hhmm(m + 60) + " (1 hour left)"
+        : n[0] + " at " + hhmm(n[1]) + (nudge ? " · adjusted" : "");
+      $("pause-label").textContent = paused ? "Resume" : "Pause for an hour";
+    }
+    var phaseAt = plan(+$("time").value).phase;
+    $("time").addEventListener("input", function () {
+      // Adjustments last until the schedule moves on, as in the app.
+      var ph = plan(+this.value).phase;
+      if (ph !== phaseAt) { nudge = 0; phaseAt = ph; }
+      paint();
+    });
+    $("pause").addEventListener("click", function () { paused = !paused; paint(); });
+    document.querySelectorAll("[data-nudge]").forEach(function (b) {
+      b.addEventListener("click", function () { paused = false; nudge += +b.dataset.nudge; paint(); });
+    });
+    var now = new Date();
+    $("time").value = now.getHours() * 60 + now.getMinutes();
+    phaseAt = plan(+$("time").value).phase;
+    paint();
+  })();
+</script>
+</body>
+</html>

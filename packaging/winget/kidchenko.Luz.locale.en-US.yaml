@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: kidchenko.Luz
+PackageVersion: 0.0.1
+PackageLocale: en-US
+Publisher: kidchenko
+PublisherUrl: https://github.com/kidchenko
+PublisherSupportUrl: https://github.com/kidchenko/luz/issues
+PackageName: Luz
+PackageUrl: https://github.com/kidchenko/luz
+License: MIT
+LicenseUrl: https://github.com/kidchenko/luz/blob/main/LICENSE
+Copyright: Copyright (c) 2026 kidchenko
+ShortDescription: Warm your screen at night, from the tray, like f.lux
+Description: |-
+  A sun in the notification area that turns your screen's colour warmer after
+  sunset and back to daylight in the morning, like f.lux.
+
+  Sunrise and sunset are worked out for where you are, guessed from your time
+  zone, so there is no location prompt and nothing goes over the network.
+  Bedtime mode goes warmer still before you sleep. Pause it for an hour or
+  until morning, or nudge it warmer, cooler or dimmer, with f.lux's own
+  keyboard shortcuts. Colours go down to 1200 K, and every change fades.
+Moniker: luz
+Tags:
+  - f.lux
+  - flux
+  - night-light
+  - blue-light
+  - color-temperature
+  - screen
+  - tray
+  - utilities
