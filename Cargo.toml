@@ -2,7 +2,7 @@
 name         = "luz"
 version      = "0.0.1"
 edition      = "2021"
-rust-version = "1.77"
+rust-version = "1.90"
 description  = "Warm your screen at night, from the tray, like f.lux"
 authors      = ["kidchenko <kidchenko@gmail.com>"]
 license      = "MIT"
