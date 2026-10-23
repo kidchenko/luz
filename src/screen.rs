@@ -174,7 +174,7 @@ impl Worker {
             color::mix(self.from.0, self.to.0, e),
             self.from.1 + (self.to.1 - self.from.1) * e,
         );
-        let changed = self.applied.map_or(true, |(k, b)| {
+        let changed = self.applied.is_none_or(|(k, b)| {
             (1e6 / k - 1e6 / self.now.0).abs() > 0.05 || (b - self.now.1).abs() > 0.0005
         });
         if changed || self.applied_at.elapsed() >= REASSERT {
