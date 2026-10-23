@@ -151,6 +151,16 @@ Windows' **Night light** and macOS's **Night Shift** work differently: they
 sit on top of what Luz does, so with either one on you get both. Turn them off
 too.
 
+## From a terminal
+
+```
+luz status                    # the colour now, the day's sun, and where Luz thinks you are
+luz location -23.55 -46.63    # set where you are (south and west negative)
+luz location auto             # back to guessing from the time zone
+luz reset                     # put the screens' colours back, after a crash
+luz                           # pause the running copy for an hour, or resume it
+```
+
 ## Install
 
 ### Windows
@@ -350,12 +360,33 @@ served by GitHub Pages from `/docs`.
 1. Bump `version` in `Cargo.toml` and add a section to `CHANGELOG.md`.
 2. `git tag vX.Y.Z && git push origin vX.Y.Z`
 
-The release workflow builds the installer, the portable exe and a universal
-DMG, and publishes them with checksums. It updates the winget and Chocolatey
-manifests as run artifacts, pushes to Chocolatey when `CHOCO_API_KEY` is set,
-and asks [kidchenko/homebrew-tap](https://github.com/kidchenko/homebrew-tap)
-to bump the cask when `HOMEBREW_TAP_TOKEN` is set.
+The `release` workflow builds the DMG on macOS and the installer and portable
+exe on Windows, puts them on a GitHub Release with checksums, and updates the
+Chocolatey and winget manifests with the new version and checksums:
+
+- **Chocolatey** is pushed automatically when the `CHOCO_API_KEY` secret is set.
+- **winget**: submit the `manifest-winget` artifact to
+  [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs), or use
+  `wingetcreate submit`.
+- **Homebrew**: [kidchenko/homebrew-tap](https://github.com/kidchenko/homebrew-tap)
+  bumps `Casks/luz.rb` itself, right away when the `HOMEBREW_TAP_TOKEN` secret
+  is set and otherwise on its daily run.
+
+If you run the workflow by hand from the Actions tab, it's a dry run. It builds
+everything and uploads it as artifacts, but doesn't publish anything.
+
+## Not yet
+
+- **Monitor brightness on macOS.** It needs the private services MonitorControl
+  and Lunar use; for now Dimmer and Brighter darken the picture there.
+- **Brightness on the schedule.** Dimming at sunset along with the colour.
+- **Pause for an app.** Off while a photo editor or a game is in front, as
+  f.lux does.
+- **A signed, notarized Mac build.** No more Gatekeeper step, and
+  notifications would show up as Luz.
+- **Code signing on Windows.** No more SmartScreen warning.
 
 ## License
 
-MIT
+MIT. The menu's glyphs are from [Lucide](https://lucide.dev) (ISC); see
+[assets/icons/LICENSES.md](assets/icons/LICENSES.md).
