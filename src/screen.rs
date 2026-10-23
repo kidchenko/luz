@@ -183,8 +183,10 @@ impl Worker {
     }
 
     /// Set the ramps, stepping toward plain while Windows refuses them. Once
-    /// backed off, try a step bolder each time the ramps are set again, so the
-    /// backoff lifts when the colour asked for gets milder.
+    /// backed off, try the colour in full each time the ramps are set again,
+    /// then a step bolder: a refusal can be a passing one (a screen waking
+    /// up, the lock screen), and the backoff should lift as soon as it's over
+    /// or the colour asked for gets milder.
     fn apply(&mut self) {
         let (kelvin, brightness) = self.now;
         let gains = color::gains(kelvin);
@@ -194,9 +196,11 @@ impl Worker {
         };
         let reassert = self.applied_at.elapsed() >= REASSERT;
         if self.backoff > 0.0 && reassert {
-            let bolder = (self.backoff - BACKOFF_STEP).max(0.0);
-            if try_at(bolder).refused == 0 {
-                self.backoff = bolder;
+            for bolder in [0.0, (self.backoff - BACKOFF_STEP).max(0.0)] {
+                if try_at(bolder).refused == 0 {
+                    self.backoff = bolder;
+                    break;
+                }
             }
         }
         let mut out = try_at(self.backoff);
