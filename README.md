@@ -166,13 +166,11 @@ luz                           # pause the running copy for an hour, or resume it
 ### Windows
 
 ```powershell
-winget install kidchenko.Luz
-# or
-choco install luz
-# or
 scoop bucket add kidchenko https://github.com/kidchenko/scoop-bucket
 scoop install kidchenko/luz
 ```
+
+winget and Chocolatey packages are on the way.
 
 Or grab [**Luz-Setup.exe**](https://github.com/kidchenko/luz/releases/latest/download/Luz-Setup.exe)
 directly. Each release also ships a portable `luz-x.y.z-x64.exe` that runs
