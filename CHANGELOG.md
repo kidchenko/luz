@@ -16,6 +16,9 @@ First release.
   that wait for you if the sun is up first.
 - Pause for an hour or until sunrise. Warmer, cooler, dimmer and brighter, on
   top of the schedule until it next changes.
+- Monitor brightness over DDC/CI on Windows: a **Brightness** menu for each
+  monitor that answers, and Dimmer/Brighter (Alt+PgDn/PgUp) turn the real
+  backlight down and up. Without one, they darken the picture instead.
 - f.lux's keyboard shortcuts: Alt+End, Alt+PgUp/PgDn, Alt+Shift+PgUp/PgDn
   (⌥ on a Mac).
 - Keeps a screen's calibration curve, tinting it rather than replacing it,

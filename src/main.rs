@@ -13,6 +13,7 @@
 //! | `color`           | colour temperature to red, green and blue            |
 //! | `gamma`           | the screens' ramps                                   |
 //! | `screen`          | the thread that fades and keeps the ramps set        |
+//! | `backlight`       | monitor brightness over DDC/CI                       |
 //! | `hotkeys`         | f.lux's shortcuts                                    |
 //! | `rival`           | whether f.lux is running too                         |
 //! | `config`          | the persisted preferences                            |
@@ -26,6 +27,7 @@
 mod app;
 mod art;
 mod autostart;
+mod backlight;
 mod color;
 mod config;
 mod gamma;

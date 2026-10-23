@@ -7,6 +7,7 @@
 //! when something on it changed, and on macOS not while it is open, because
 //! replacing an open menu closes it.
 
+use crate::backlight::{Backlight, Monitor};
 use crate::color::{self, MAX_K, MIN_K, NEUTRAL_K};
 use crate::config::{Config, FAST_FADE, SLOW_FADE};
 use crate::hotkeys::{Action, Hotkeys};
@@ -34,6 +35,7 @@ const ID_WARMER: &str = "warmer";
 const ID_COOLER: &str = "cooler";
 const ID_DIMMER: &str = "dimmer";
 const ID_BRIGHTER: &str = "brighter";
+const ID_BACKLIGHT: &str = "backlight:";
 const ID_UNDO: &str = "undo";
 const ID_DAY_K: &str = "day-k:";
 const ID_SUNSET_K: &str = "sunset-k:";
@@ -67,6 +69,10 @@ const NUDGE: f64 = 20.0;
 /// One press of Dimmer or Brighter, and how dim it goes.
 const DIM_STEP: f64 = 0.1;
 const DIM_FLOOR: f64 = 0.3;
+/// One press of Dimmer or Brighter on a monitor's own backlight, in percent,
+/// and the levels its menu offers.
+const BACKLIGHT_STEP: i32 = 10;
+const BACKLIGHT_PRESETS: [u8; 5] = [100, 75, 50, 25, 0];
 
 /// How long the screen takes to follow a hand-made change, and the
 /// schedule's own second-by-second one.
@@ -84,6 +90,8 @@ pub enum UserEvent {
     Tick,
     /// A second launch of the app: pause, or resume.
     Summon,
+    /// The backlight thread read new levels.
+    Backlight,
 }
 
 #[derive(PartialEq, Eq)]
@@ -117,6 +125,7 @@ pub struct App {
     /// Started once the first colour is known.
     screen: Option<Screen>,
     hotkeys: Hotkeys,
+    backlight: Backlight,
 
     place: Option<Place>,
     sun: SunDay,
@@ -171,6 +180,12 @@ impl App {
             dark_taskbar,
             screen: None,
             hotkeys,
+            backlight: {
+                let proxy = proxy.clone();
+                Backlight::start(move || {
+                    let _ = proxy.send_event(UserEvent::Backlight);
+                })
+            },
             place,
             sun: SunDay {
                 day: Day::AlwaysUp,
@@ -213,6 +228,7 @@ impl App {
     pub fn handle(&mut self, event: UserEvent) -> Flow {
         match event {
             UserEvent::Tick => self.tick(),
+            UserEvent::Backlight => self.rebuild_menu(false),
             UserEvent::Summon => {
                 if self.paused() {
                     self.resume();
@@ -233,8 +249,8 @@ impl App {
                     Action::Pause => self.pause_for(3600),
                     Action::Warmer => self.nudge(NUDGE, 0.0),
                     Action::Cooler => self.nudge(-NUDGE, 0.0),
-                    Action::Dimmer => self.nudge(0.0, -DIM_STEP),
-                    Action::Brighter => self.nudge(0.0, DIM_STEP),
+                    Action::Dimmer => self.dim(-1),
+                    Action::Brighter => self.dim(1),
                 }
             }
             UserEvent::Menu(id) => return self.menu(&id),
@@ -257,8 +273,8 @@ impl App {
             ID_RESUME => self.resume(),
             ID_WARMER => self.nudge(NUDGE, 0.0),
             ID_COOLER => self.nudge(-NUDGE, 0.0),
-            ID_DIMMER => self.nudge(0.0, -DIM_STEP),
-            ID_BRIGHTER => self.nudge(0.0, DIM_STEP),
+            ID_DIMMER => self.dim(-1),
+            ID_BRIGHTER => self.dim(1),
             ID_UNDO => {
                 self.adjust = None;
                 self.follow(QUICK);
@@ -285,6 +301,14 @@ impl App {
             ID_UNLOCK => unlock_warmer(),
             ID_EDIT => open_config(),
             other => {
+                if let Some((i, level)) = other
+                    .strip_prefix(ID_BACKLIGHT)
+                    .and_then(|r| r.split_once(':'))
+                    .and_then(|(i, l)| Some((i.parse().ok()?, l.parse().ok()?)))
+                {
+                    self.backlight.set(i, level);
+                    return Flow::Continue;
+                }
                 if let Some(k) = parse::<u32>(other, ID_DAY_K) {
                     self.cfg.day_kelvin = k;
                 } else if let Some(k) = parse::<u32>(other, ID_SUNSET_K) {
@@ -469,6 +493,17 @@ impl App {
         self.rebuild_menu(false);
     }
 
+    /// Dimmer (-1) or brighter (1): the monitors' own backlights where they
+    /// answer, which really turns the light down; the gamma ramp where none
+    /// does.
+    fn dim(&mut self, dir: i32) {
+        if self.backlight.monitors().is_empty() {
+            self.nudge(0.0, dir as f64 * DIM_STEP);
+        } else {
+            self.backlight.step(dir * BACKLIGHT_STEP);
+        }
+    }
+
     fn next_morning(&self) -> Option<(Event, f64, f64)> {
         schedule::next_morning(self.now.minute, self.sun.day, &self.colours())
     }
@@ -624,7 +659,7 @@ impl App {
         let morning = self.next_morning().map(|(_, _, at)| clock_label(at));
         let autostart_on = autostart::is_enabled();
         let sig = format!(
-            "{:?}|{}|{:?}|{}{}{}{}{:?}|{:?}|{:?}",
+            "{:?}|{}|{:?}|{}{}{}{}{:?}|{:?}|{:?}|{:?}",
             Config {
                 paused_until: 0,
                 ..self.cfg.clone()
@@ -638,6 +673,7 @@ impl App {
             morning,
             self.face,
             self.place.as_ref().map(Place::describe),
+            self.backlight.monitors(),
         );
         if sig == self.menu_sig && !force {
             return;
@@ -733,6 +769,9 @@ impl App {
                 art::glyph("rotate-ccw"),
                 None,
             ));
+        }
+        if let Some(brightness) = backlight_menu(&self.backlight.monitors()) {
+            let _ = menu.append(&brightness);
         }
         let _ = menu.append(&PredefinedMenuItem::separator());
 
@@ -916,6 +955,46 @@ impl App {
         let _ = settings.append_items(&items);
         settings
     }
+}
+
+/// "Brightness  30% ▸", for the monitors whose backlight answers: their levels
+/// straight under it for one, a submenu each for several. `None` for none.
+fn backlight_menu(monitors: &[Monitor]) -> Option<Submenu> {
+    let levels = |sub: &Submenu, i: usize, now: u8| {
+        let mut all = BACKLIGHT_PRESETS.to_vec();
+        if !all.contains(&now) {
+            all.push(now);
+            all.sort_unstable_by(|a, b| b.cmp(a));
+        }
+        for level in all {
+            let _ = sub.append(&CheckMenuItem::with_id(
+                format!("{ID_BACKLIGHT}{i}:{level}"),
+                format!("{level}%"),
+                true,
+                level == now,
+                None,
+            ));
+        }
+    };
+    let menu = match monitors {
+        [] => return None,
+        [only] => {
+            let sub = Submenu::new(columns("Brightness", &format!("{}%", only.level)), true);
+            levels(&sub, 0, only.level);
+            sub
+        }
+        several => {
+            let sub = Submenu::new("Brightness", true);
+            for (i, m) in several.iter().enumerate() {
+                let each = Submenu::new(columns(&m.name, &format!("{}%", m.level)), true);
+                levels(&each, i, m.level);
+                let _ = sub.append(&each);
+            }
+            sub
+        }
+    };
+    menu.set_icon(art::glyph("sun-medium"));
+    Some(menu)
 }
 
 /// "Sunset  3400 K ▸", and the presets under it, with the current one ticked.

@@ -49,7 +49,8 @@ under it says what comes next (**Bedtime at 23:00**). Under them:
 | **Pause for an hour** | Back to your screen's own colours for an hour, for photos or design work. While paused, this reads **Resume**. |
 | **Pause until sunrise** | Off for the rest of the night. With Bedtime mode on it's **Pause until morning**, at your wake time. |
 | **Warmer, Cooler** | A step at a time, on top of the schedule. |
-| **Dimmer, Brighter** | Turns the whole screen down, past what the brightness keys can do, down to 30%. |
+| **Dimmer, Brighter** | Turns your monitors' own backlight down or up, 10% at a time. Where no monitor lets Luz do that, it darkens the picture instead, down to 30%. [More below.](#brightness) |
+| **Brightness** | Each monitor's backlight level, with 100, 75, 50, 25 and 0% to pick from. Only there when a monitor answers. |
 | **Back to the schedule** | Drops your adjustments. They also go by themselves at the next change, so a nudge at 21:00 lasts until bedtime. |
 | **Colours** | The **Daytime**, **Sunset** and **Bedtime** colours, from f.lux's list: Daylight 6500 K, Sunlight 5500 K, Fluorescent 4200 K, Halogen 3400 K, Incandescent 2700 K, Candle 1900 K, Ember 1200 K, and a few in between. |
 
@@ -104,6 +105,26 @@ luz location auto              # back to the time zone's city
 That writes to the config file, and a Luz that's already running picks it up
 within a second.
 
+### Brightness
+
+Luz can turn down the light itself, not just its colour. Most external
+monitors take brightness commands over DDC/CI, the same channel their own
+buttons use, and Luz sends them there. That's better than darkening the
+picture: the backlight really dims, so there's less glare, and blacks stay
+black.
+
+Monitors that answer show up under **Brightness**, and **Dimmer** and
+**Brighter** (Alt+PgDn and Alt+PgUp) move all of them 10% at a time. The level
+is the monitor's own setting, so it stays where you put it, even after Luz
+quits.
+
+Laptop screens don't speak DDC/CI; their brightness keys already do this.
+Neither do some docks, USB-C adapters and TVs, and some monitors have DDC/CI
+switched off in their on-screen menu. With no monitor answering, Dimmer and
+Brighter darken the picture with the gamma ramp instead, and that lasts until
+the schedule next changes. On macOS this is the only kind for now: monitor
+brightness there needs private system services, and isn't in Luz yet.
+
 ### Keyboard shortcuts
 
 The same keys as f.lux, so your muscle memory still works:
@@ -113,7 +134,7 @@ The same keys as f.lux, so your muscle memory still works:
 | Alt+End | ⌥End | Pause for an hour, or resume |
 | Alt+Shift+PgDn | ⌥⇧⇟ | Warmer |
 | Alt+Shift+PgUp | ⌥⇧⇞ | Cooler |
-| Alt+PgDn | ⌥⇟ | Dimmer |
+| Alt+PgDn | ⌥⇟ | Dimmer ([monitors' backlight](#brightness) where they answer) |
 | Alt+PgUp | ⌥⇞ | Brighter |
 
 On a Mac laptop, End and Page Up/Down are fn with the arrow keys. If another
@@ -266,6 +287,10 @@ setting f.lux uses (`GdiIcmGammaRange` under
 `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ICM`), and it only allows
 warmer colours. It doesn't set any.
 
+**A monitor isn't under Brightness.** It doesn't answer DDC/CI. Look for a
+DDC/CI setting in its on-screen menu, and try it on a direct cable rather
+than through a dock or adapter.
+
 **One screen isn't changing.** Windows skips the gamma ramp on screens in HDR
 mode. Turn HDR off for that screen in **Settings > Display**. Some DisplayLink
 and other USB displays have no ramp at all.
@@ -307,13 +332,15 @@ choco install innosetup -y     # only for the installer
 All you need is the Rust toolchain. The schedule, the colours, the sun and the
 menu are shared. Only the OS-specific parts are split: GDI vs CoreGraphics
 ramps, the Windows time zone name vs `/etc/localtime`, and WinRT toasts vs
-`osascript`.
+`osascript`. Monitor brightness (`src/backlight.rs`) is Windows only for now,
+through the Monitor Configuration API.
 
 `cargo test` covers everything that doesn't need a desktop: sunrise and sunset
 against NOAA's full calculator, the schedule through a day with and without
 Bedtime mode (and in a polar summer), the colour of each temperature, time zone
-lookups, config parsing and the icon drawing. Two tests that tint your screen
-for a moment are left out by default; `cargo test -- --ignored` runs them.
+lookups, config parsing and the icon drawing. Three tests that touch the real
+screens (two tint them for a moment, one steps a monitor's brightness down and
+back) are left out by default; `cargo test -- --ignored` runs them.
 
 The landing page is [`docs/index.html`](docs/index.html), a single static file
 served by GitHub Pages from `/docs`.
