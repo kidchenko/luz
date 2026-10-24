@@ -48,6 +48,7 @@ const ID_HOTKEYS: &str = "hotkeys";
 const ID_AUTOSTART: &str = "autostart";
 const ID_UNLOCK: &str = "unlock";
 const ID_EDIT: &str = "edit-config";
+const ID_UPDATES: &str = "check-updates";
 const ID_QUIT: &str = "quit";
 /// Shared by every read-only row; nothing dispatches on it.
 const ID_INERT: &str = "inert";
@@ -300,6 +301,7 @@ impl App {
             }
             ID_UNLOCK => unlock_warmer(),
             ID_EDIT => open_config(),
+            ID_UPDATES => check_for_updates(),
             other => {
                 if let Some((i, level)) = other
                     .strip_prefix(ID_BACKLIGHT)
@@ -798,6 +800,13 @@ impl App {
         let _ = menu.append(&settings);
         let _ = menu.append(&PredefinedMenuItem::separator());
         let _ = menu.append(&IconMenuItem::with_id(
+            ID_UPDATES,
+            "Check for updates\u{2026}",
+            true,
+            art::glyph("refresh-cw"),
+            None,
+        ));
+        let _ = menu.append(&IconMenuItem::with_id(
             ID_QUIT,
             "Quit Luz",
             true,
@@ -1112,6 +1121,45 @@ fn open_config() {
         .spawn();
     if let Err(e) = spawned {
         lwarn!("could not open {}: {e}", path.display());
+    }
+}
+
+/// Open Luz's web page in the browser, which compares the version it's given
+/// with the latest release. Luz itself never goes on the network.
+fn check_for_updates() {
+    let url = concat!("https://josebarbosa.dev/luz/?v=", env!("CARGO_PKG_VERSION"));
+    #[cfg(windows)]
+    let opened = {
+        use crate::util::{pcwstr, wide};
+        use windows::core::PCWSTR;
+        use windows::Win32::UI::Shell::ShellExecuteW;
+        use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+        let (verb, file) = (wide("open"), wide(url));
+        let rc = unsafe {
+            ShellExecuteW(
+                None,
+                pcwstr(&verb),
+                pcwstr(&file),
+                PCWSTR::null(),
+                PCWSTR::null(),
+                SW_SHOWNORMAL,
+            )
+        };
+        // Above 32 is success, as for elevate().
+        if rc.0 as isize > 32 {
+            Ok(())
+        } else {
+            Err(format!("error {}", rc.0 as isize))
+        }
+    };
+    #[cfg(target_os = "macos")]
+    let opened = std::process::Command::new("/usr/bin/open")
+        .arg(url)
+        .spawn()
+        .map(drop)
+        .map_err(|e| e.to_string());
+    if let Err(e) = opened {
+        lwarn!("could not open {url}: {e}");
     }
 }
 

@@ -22,7 +22,7 @@ PAD=2            # breathing room, so glyphs sit at the size of the OS's own ico
 # Luz name = Lucide name.
 GLYPHS=(
   sun sunset sunrise moon bed pause play flame snowflake sun-dim sun-medium
-  rotate-ccw map-pin palette alarm-clock settings file-cog lock-open power
+  rotate-ccw map-pin palette alarm-clock settings file-cog lock-open refresh-cw power
 )
 
 work="$(mktemp -d)"

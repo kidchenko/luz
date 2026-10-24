@@ -111,6 +111,26 @@
   .os-mac .for-win { display: none; }
   .os-mac .for-mac { display: block; }
 
+  /* Opened from the app's "Check for updates…" item. */
+  .update {
+    margin: 0 auto 36px; max-width: 34rem; padding: 12px 16px;
+    background: var(--raised); border: 1px solid var(--line); border-radius: 11px;
+    color: var(--dim); font-size: .94rem;
+  }
+  .update[data-state="new"] { border-color: var(--accent); }
+  .update[data-state="new"] strong { color: var(--accent); }
+  .for-mac-inline { display: none; }
+  .os-mac .for-mac-inline { display: inline; }
+  .os-mac .for-win-inline { display: none; }
+
+  .copy {
+    font: 600 .74rem "Cascadia Code", Consolas, ui-monospace, monospace;
+    color: var(--dim); background: transparent; border: 1px solid var(--line); border-radius: 6px;
+    padding: .18em .55em; margin-left: 6px; vertical-align: .08em; cursor: pointer;
+  }
+  .copy:hover { color: var(--text); border-color: var(--faint); }
+  .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
   /* --------------------------------------------------------------- the demo */
   .demo { margin: 64px auto 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
   .stage { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
@@ -192,6 +212,13 @@
   .how p { margin: 0 0 16px; color: var(--dim); }
   .how p b { color: var(--text); font-weight: 600; }
 
+  .apps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; }
+  .apps li { display: grid; grid-template-columns: 32px 1fr; gap: 0 14px; align-items: start; }
+  .apps img { width: 32px; height: 32px; margin-top: 2px; }
+  .apps a { font-weight: 600; }
+  .apps span { display: block; color: var(--dim); font-size: .94rem; line-height: 1.45; }
+  @media (max-width: 640px) { .apps { grid-template-columns: 1fr; } }
+
   footer { padding: 84px 0 56px; color: var(--faint); font-size: .9rem; text-align: center; }
   footer a { color: var(--dim); }
 
@@ -206,6 +233,7 @@
 <body>
 
 <header class="wrap">
+  <div class="update" id="update" role="status" hidden></div>
   <img class="mark" src="img/icon-256.png" alt="" width="128" height="128">
   <h1>Luz</h1>
   <p class="tagline">Warm your screen at night, from the tray. Like f.lux.</p>
@@ -214,8 +242,8 @@
     <a class="download dl-win" href="https://github.com/kidchenko/luz/releases/latest/download/Luz-Setup.exe">Download for Windows</a>
     <a class="download ghost dl-mac" href="https://github.com/kidchenko/luz/releases/latest/download/Luz.dmg">Download for macOS</a>
   </div>
-  <p class="alt for-win">or <code>scoop install kidchenko/luz</code> · winget and Chocolatey coming</p>
-  <p class="alt for-mac">or <code>brew install --cask kidchenko/tap/luz</code></p>
+  <p class="alt for-win">or <code data-copy>scoop install kidchenko/luz</code> · winget and Chocolatey coming</p>
+  <p class="alt for-mac">or <code data-copy>brew install --cask kidchenko/tap/luz</code></p>
 </header>
 
 <div class="wrap demo" aria-label="Preview of Luz through a day">
@@ -239,6 +267,7 @@
       <div class="row"><span></span><span>Colours</span><span class="arrow">›</span></div>
       <div class="row"><span></span><span>Settings</span><span class="arrow">›</span></div>
       <div class="sep"></div>
+      <div class="row"><span></span><span>Check for updates…</span><span></span></div>
       <div class="row"><span></span><span>Quit Luz</span><span></span></div>
     </div>
   </div>
@@ -289,12 +318,24 @@
     <h2>Install</h2>
     <table>
       <tr><td>Windows installer</td><td><a href="https://github.com/kidchenko/luz/releases/latest/download/Luz-Setup.exe">Luz-Setup.exe</a></td></tr>
-      <tr><td>Scoop</td><td><code>scoop bucket add kidchenko https://github.com/kidchenko/scoop-bucket</code><br><code>scoop install kidchenko/luz</code></td></tr>
+      <tr><td>Scoop</td><td><code data-copy>scoop bucket add kidchenko https://github.com/kidchenko/scoop-bucket</code><br><code data-copy>scoop install kidchenko/luz</code></td></tr>
       <tr><td>winget, Chocolatey</td><td>Coming soon</td></tr>
       <tr><td>macOS</td><td><a href="https://github.com/kidchenko/luz/releases/latest/download/Luz.dmg">Luz.dmg</a> (Apple silicon and Intel)</td></tr>
-      <tr><td>Homebrew</td><td><code>brew install --cask kidchenko/tap/luz</code></td></tr>
+      <tr><td>Homebrew</td><td><code data-copy>brew install --cask kidchenko/tap/luz</code></td></tr>
     </table>
     <p class="alt" style="text-align:left">Windows 10 or later, or macOS 11 or later. It's under 1 MB and needs nothing else installed. Coming from f.lux? Quit it first, so the two don't take turns.</p>
+  </section>
+
+  <section>
+    <h2>More small tray apps</h2>
+    <ul class="apps">
+      <li><img src="https://josebarbosa.dev/cafe/img/icon-256.png" alt="" width="32" height="32"><div><a href="https://josebarbosa.dev/cafe/">Cafe</a><span>Keeps your Mac or PC awake, from the tray.</span></div></li>
+      <li><img src="https://josebarbosa.dev/cantos/img/icon-256.png" alt="" width="32" height="32"><div><a href="https://josebarbosa.dev/cantos/">Cantos</a><span>Hot corners for Windows, macOS and Linux.</span></div></li>
+      <li><img src="https://josebarbosa.dev/cota/img/icon-256.png" alt="" width="32" height="32"><div><a href="https://josebarbosa.dev/cota/">Cota</a><span>Your Claude usage limits, in the tray.</span></div></li>
+      <li><img src="https://josebarbosa.dev/porta/img/icon-256.png" alt="" width="32" height="32"><div><a href="https://josebarbosa.dev/porta/">Porta</a><span>What's listening on your ports, and a way to stop it.</span></div></li>
+      <li><img src="https://josebarbosa.dev/sonus/img/icon-256.png" alt="" width="32" height="32"><div><a href="https://josebarbosa.dev/sonus/">Sonus</a><span>A volume slider for every app.</span></div></li>
+      <li><img src="https://josebarbosa.dev/suavez/img/icon-256.png" alt="" width="32" height="32"><div><a href="https://josebarbosa.dev/suavez/">Sua Vez</a><span>Lights up when your coding agent finishes or needs you.</span></div></li>
+    </ul>
   </section>
 </main>
 
@@ -302,6 +343,7 @@
   Made by <a href="https://github.com/kidchenko">kidchenko</a>. MIT licensed.
   <a href="https://github.com/kidchenko/luz">Source</a> and
   <a href="https://github.com/kidchenko/luz/releases">releases</a> on GitHub.
+  <a href="https://josebarbosa.dev/portfolio/">All apps</a>.
 </footer>
 
 <script>
@@ -310,6 +352,68 @@
     var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
     if (/mac/i.test(p)) document.body.classList.add("os-mac");
   } catch (e) {}
+
+  // Opened from the app's "Check for updates…" menu item as ?v=<installed>.
+  // The app never touches the network; this page asks GitHub instead.
+  (function () {
+    var have = new URLSearchParams(location.search).get("v");
+    if (!have || !/^\d+(\.\d+){0,3}$/.test(have)) return;
+    var box = document.getElementById("update");
+    function cmp(a, b) {
+      a = a.split("."); b = b.split(".");
+      for (var i = 0; i < Math.max(a.length, b.length); i++) {
+        var d = (+a[i] || 0) - (+b[i] || 0);
+        if (d) return d;
+      }
+      return 0;
+    }
+    function show(html, state) {
+      box.innerHTML = html;
+      box.setAttribute("data-state", state);
+      box.hidden = false;
+    }
+    fetch("https://api.github.com/repos/kidchenko/luz/releases/latest")
+      .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+      .then(function (rel) {
+        var latest = String(rel.tag_name || "").replace(/^v/, "");
+        if (!/^\d+(\.\d+){0,3}$/.test(latest)) throw "tag";
+        if (cmp(latest, have) > 0) {
+          show("<strong>Luz " + latest + " is out.</strong> You have " + have + ". " +
+               "Download it below, or run " +
+               "<code class=\"for-mac-inline\">brew upgrade --cask kidchenko/tap/luz</code>" +
+               "<code class=\"for-win-inline\">scoop update luz</code> if you installed it that way.", "new");
+        } else {
+          show("You have the latest version of Luz (" + have + ").", "current");
+        }
+      })
+      .catch(function () {
+        show("Could not reach GitHub to check. You have " + have + ". " +
+             "<a href=\"https://github.com/kidchenko/luz/releases\">See all releases</a>.", "error");
+      });
+  })();
+
+  // A Copy button after each install command.
+  document.querySelectorAll("code[data-copy]").forEach(function (code) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "copy";
+    btn.textContent = "Copy";
+    code.after(btn);
+    btn.addEventListener("click", function () {
+      function select() {
+        var r = document.createRange();
+        r.selectNodeContents(code);
+        var sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+      if (!navigator.clipboard) return select();
+      navigator.clipboard.writeText(code.textContent).then(function () {
+        btn.textContent = "Copied";
+        setTimeout(function () { btn.textContent = "Copy"; }, 1500);
+      }, select);
+    });
+  });
 
   // The demo: the app's schedule and colour maths (src/schedule.rs,
   // src/color.rs), for one made-up day.

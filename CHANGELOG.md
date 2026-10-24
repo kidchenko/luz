@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Check for updates…** in the menu opens Luz's web page with your version,
+  and the page says whether a newer one is out. Luz still doesn't use the
+  network itself.
+
 ## [0.0.1] - 2026-10-23
 
 First release.

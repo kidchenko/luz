@@ -66,8 +66,10 @@ under it says what comes next (**Bedtime at 23:00**). Under them:
 | **Run at login** | Just for your user, no admin needed. On macOS it shows up in System Settings > General > Login Items. Move Luz.app to Applications first. |
 | **Edit settings file…** | Opens the config file in a text editor (⌘, on macOS). [More below.](#configuration) |
 
-Under that is the version you're running. **Quit Luz** (⌘Q on macOS) puts
-your screen's colours back as it goes.
+Under that is the version you're running. **Check for updates…** opens
+Luz's web page in your browser with that version, and the page asks GitHub
+whether there's a newer one. Luz itself still doesn't use the network. **Quit
+Luz** (⌘Q on macOS) puts your screen's colours back as it goes.
 
 ### The day
 
