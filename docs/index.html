@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Luz: warm your screen at night</title>
-<meta name="description" content="A sun in the tray that turns your screen warm after sunset and back to daylight in the morning, like f.lux, for Windows and macOS. Free and open source.">
+<meta name="description" content="A sun in the tray that turns your screen warm after sunset and back to daylight in the morning, like f.lux, for Windows, macOS and Linux. Free and open source.">
 <link rel="icon" href="img/icon-256.png" type="image/png">
 
 <meta property="og:title" content="Luz: warm your screen at night">
-<meta property="og:description" content="Like f.lux, in one small app: your screen follows the sun. For Windows and macOS.">
+<meta property="og:description" content="Like f.lux, in one small app: your screen follows the sun. For Windows, macOS and Linux.">
 <meta property="og:image" content="https://josebarbosa.dev/luz/img/icon-256.png">
 <meta property="og:url" content="https://josebarbosa.dev/luz/">
 <meta property="og:type" content="website">
@@ -102,14 +102,14 @@
     transition: transform .12s ease, filter .12s ease;
   }
   .download:hover { text-decoration: none; transform: translateY(-1px); filter: brightness(1.07); }
-  .download.ghost, .os-mac .dl-win {
+  .download.ghost, .os-mac .dl-win, .os-linux .dl-win {
     background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--line);
   }
-  .os-mac .dl-mac { background: var(--accent); color: var(--on-acc); box-shadow: none; order: -1; }
+  .os-mac .dl-mac, .os-linux .dl-linux { background: var(--accent); color: var(--on-acc); box-shadow: none; order: -1; }
   .alt { margin: 18px 0 0; color: var(--faint); font-size: .94rem; }
-  .for-mac { display: none; }
-  .os-mac .for-win { display: none; }
-  .os-mac .for-mac { display: block; }
+  .for-mac, .for-linux { display: none; }
+  .os-mac .for-win, .os-linux .for-win { display: none; }
+  .os-mac .for-mac, .os-linux .for-linux { display: block; }
 
   /* Opened from the app's "Check for updates…" item. */
   .update {
@@ -121,7 +121,7 @@
   .update[data-state="new"] strong { color: var(--accent); }
   .for-mac-inline { display: none; }
   .os-mac .for-mac-inline { display: inline; }
-  .os-mac .for-win-inline { display: none; }
+  .os-mac .for-win-inline, .os-linux .for-win-inline { display: none; }
 
   .copy {
     font: 600 .74rem "Cascadia Code", Consolas, ui-monospace, monospace;
@@ -169,7 +169,11 @@
   .menu .head b { color: var(--menu-tx); font-weight: 600; }
   .menu .key { color: var(--menu-dim); font-size: 12px; }
   .menu .sep { height: 1px; background: rgba(127,127,127,.25); margin: 5px 8px; }
-  .menu .arrow { color: var(--menu-dim); font-size: 12px; }
+  .menu .arrow { color: var(--menu-dim); font-size: 12px; transition: transform .12s ease; }
+  .menu [aria-expanded="true"] .arrow { transform: rotate(90deg); }
+  /* A submenu, opened in place rather than beside the menu. */
+  .menu .sub { margin: 2px 0 4px 26px; padding-left: 6px; border-left: 1px solid rgba(127,127,127,.25); }
+  .menu .sub[hidden], .menu .row[hidden] { display: none; }
 
   .clock { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
     background: #1f1f1f; color: #e6e6e6; border-radius: 10px; padding: 8px 14px; font-size: 13px;
@@ -241,9 +245,11 @@
   <div class="cta">
     <a class="download dl-win" href="https://github.com/kidchenko/luz/releases/latest/download/Luz-Setup.exe">Download for Windows</a>
     <a class="download ghost dl-mac" href="https://github.com/kidchenko/luz/releases/latest/download/Luz.dmg">Download for macOS</a>
+    <a class="download ghost dl-linux" href="https://github.com/kidchenko/luz/releases/latest/download/luz-x86_64-linux.tar.gz">Download for Linux</a>
   </div>
   <p class="alt for-win">or <code data-copy>scoop install kidchenko/luz</code> · winget and Chocolatey coming</p>
   <p class="alt for-mac">or <code data-copy>brew install --cask kidchenko/tap/luz</code></p>
+  <p class="alt for-linux">For X11, Hyprland, Sway, GNOME and KDE. <a href="#linux">What works where</a></p>
 </header>
 
 <div class="wrap demo" aria-label="Preview of Luz through a day">
@@ -260,15 +266,16 @@
       <div class="row head"><span></span><span id="detail">Sunset at 17:55</span><span></span></div>
       <div class="sep"></div>
       <button class="row" id="pause" role="menuitem"><span>❙❙</span><span id="pause-label">Pause for an hour</span><span class="key">Alt+End</span></button>
-      <div class="sep"></div>
-      <button class="row" data-nudge="20" role="menuitem"><span>🔥</span><span>Warmer</span><span class="key">Alt+Shift+PgDn</span></button>
-      <button class="row" data-nudge="-20" role="menuitem"><span>❄</span><span>Cooler</span><span class="key">Alt+Shift+PgUp</span></button>
-      <div class="sep"></div>
+      <div class="row" id="morning"><span></span><span>Pause until morning</span><span class="key">07:00</span></div>
+      <button class="row" id="adjust" role="menuitem" aria-expanded="true" aria-controls="adjust-sub"><span></span><span>Adjust</span><span class="arrow">›</span></button>
+      <div class="sub" id="adjust-sub">
+        <button class="row" data-nudge="20" role="menuitem"><span></span><span>Warmer</span><span class="key">Alt+Shift+PgDn</span></button>
+        <button class="row" data-nudge="-20" role="menuitem"><span></span><span>Cooler</span><span class="key">Alt+Shift+PgUp</span></button>
+      </div>
       <div class="row"><span></span><span>Colours</span><span class="arrow">›</span></div>
-      <div class="row"><span></span><span>Settings</span><span class="arrow">›</span></div>
       <div class="sep"></div>
-      <div class="row"><span></span><span>Check for updates…</span><span></span></div>
-      <div class="row"><span></span><span>Quit Luz</span><span></span></div>
+      <div class="row"><span></span><span>Settings</span><span class="arrow">›</span></div>
+      <div class="row"><span>⏻</span><span>Quit Luz</span><span></span></div>
     </div>
   </div>
   <label class="clock">
@@ -308,9 +315,10 @@
   <section>
     <h2>Nothing drawn on top</h2>
     <div class="how">
-      <p>Luz doesn't lay a coloured window over your screen. It sets the screen's <b>gamma ramp</b>, the table your graphics card runs every colour through on its way out, with <b>SetDeviceGammaRamp</b> on Windows and <b>CGSetDisplayTransferByTable</b> on macOS. Screenshots and recordings keep their true colours.</p>
+      <p>Luz doesn't lay a coloured window over your screen. It sets the screen's <b>gamma ramp</b>, the table your graphics card runs every colour through on its way out, with <b>SetDeviceGammaRamp</b> on Windows, <b>CGSetDisplayTransferByTable</b> on macOS and <b>RandR</b> on Linux. Screenshots and recordings keep their true colours.</p>
       <p>A calibrated screen keeps its calibration: Luz tints the curve that's there and puts it back when you quit.</p>
       <p>Windows normally stops ramps at about 3000 K. The installer lifts that limit the way f.lux does, so Candle and Ember work too.</p>
+      <p>On Linux, Hyprland, Sway and other wlroots compositors hand out their ramps too. GNOME and KDE keep theirs to themselves, so there Luz drives the desktop's own <b>Night Light</b> instead, and puts your Night Light settings back when it quits.</p>
     </div>
   </section>
 
@@ -322,8 +330,10 @@
       <tr><td>winget, Chocolatey</td><td>Coming soon</td></tr>
       <tr><td>macOS</td><td><a href="https://github.com/kidchenko/luz/releases/latest/download/Luz.dmg">Luz.dmg</a> (Apple silicon and Intel)</td></tr>
       <tr><td>Homebrew</td><td><code data-copy>brew install --cask kidchenko/tap/luz</code></td></tr>
+      <tr id="linux"><td>Linux</td><td><a href="https://github.com/kidchenko/luz/releases/latest/download/luz-x86_64-linux.tar.gz">luz-x86_64-linux.tar.gz</a>: unpack it and run <code>luz/luz</code></td></tr>
+      <tr><td>Linux, what works where</td><td>On <b>X11</b>, <b>Hyprland</b> (Omarchy too), <b>Sway</b> and other wlroots compositors, the colour, Dimmer and Brighter all work; the shortcuts need X11. On <b>GNOME</b> and <b>KDE</b> with Wayland, the colour goes through the desktop's own Night Light, so Dimmer, Brighter and the shortcuts don't work. The tray icon needs AppIndicator: <code data-copy>sudo apt install libayatana-appindicator3-1</code></td></tr>
     </table>
-    <p class="alt" style="text-align:left">Windows 10 or later, or macOS 11 or later. It's under 1 MB and needs nothing else installed. Coming from f.lux? Quit it first, so the two don't take turns.</p>
+    <p class="alt" style="text-align:left">Windows 10 or later, macOS 11 or later, or Linux (x86_64, glibc 2.35 or later). It's about 1 MB. Coming from f.lux, Redshift or Gammastep? Quit it first, so the two don't take turns.</p>
   </section>
 
   <section>
@@ -347,10 +357,11 @@
 </footer>
 
 <script>
-  // Lead with the visitor's platform. Without script both buttons still work.
+  // Lead with the visitor's platform. Without script every button still works.
   try {
     var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
     if (/mac/i.test(p)) document.body.classList.add("os-mac");
+    else if (/linux/i.test(p) && !/android/i.test(navigator.userAgent)) document.body.classList.add("os-linux");
   } catch (e) {}
 
   // Opened from the app's "Check for updates…" menu item as ?v=<installed>.
@@ -473,6 +484,7 @@
       $("detail").textContent = paused ? "Until " + hhmm(m + 60) + " (1 hour left)"
         : n[0] + " at " + hhmm(n[1]) + (nudge ? " · adjusted" : "");
       $("pause-label").textContent = paused ? "Resume" : "Pause for an hour";
+      $("morning").hidden = paused;
     }
     var phaseAt = plan(+$("time").value).phase;
     $("time").addEventListener("input", function () {
@@ -482,6 +494,11 @@
       paint();
     });
     $("pause").addEventListener("click", function () { paused = !paused; paint(); });
+    $("adjust").addEventListener("click", function () {
+      var open = this.getAttribute("aria-expanded") !== "true";
+      this.setAttribute("aria-expanded", open);
+      $("adjust-sub").hidden = !open;
+    });
     document.querySelectorAll("[data-nudge]").forEach(function (b) {
       b.addEventListener("click", function () { paused = false; nudge += +b.dataset.nudge; paint(); });
     });
