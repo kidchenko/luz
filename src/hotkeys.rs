@@ -16,6 +16,7 @@ use crate::log::{linfo, lwarn};
 use global_hotkey::hotkey::{Code, HotKey, Modifiers};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use tao::event_loop::EventLoopProxy;
+use tray_icon::menu::accelerator::Accelerator;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Action {
@@ -47,7 +48,15 @@ impl Action {
         HotKey::new(Some(mods), code)
     }
 
-    /// How the menu writes it, the way each OS writes shortcuts.
+    /// The same keys as a menu shortcut, which macOS draws in the menu's
+    /// shortcut column.
+    pub fn accelerator(self) -> Accelerator {
+        let key = self.hotkey();
+        Accelerator::new(key.mods, key.key)
+    }
+
+    /// How Windows menus and the log write it, the way each OS writes
+    /// shortcuts.
     pub fn label(self) -> &'static str {
         if cfg!(target_os = "macos") {
             match self {

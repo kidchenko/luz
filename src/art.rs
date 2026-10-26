@@ -5,6 +5,9 @@
 //! are compiled in; decoding uses the `png` crate the tray library already
 //! brings along. The sun in the menu bar is still drawn by `icon.rs`.
 
+// Linux menus go without (see `icon_item` in app.rs); the tests still run.
+#![cfg_attr(target_os = "linux", allow(dead_code))]
+
 use tray_icon::menu::Icon;
 
 macro_rules! table {
@@ -14,9 +17,7 @@ macro_rules! table {
 }
 
 const GLYPHS: &[(&str, &[u8])] = table!(
-    "alarm-clock" "bed" "file-cog" "flame" "lock-open" "map-pin" "moon"
-    "palette" "pause" "play" "power" "refresh-cw" "rotate-ccw" "settings"
-    "snowflake" "sun" "sun-dim" "sun-medium" "sunrise" "sunset"
+    "file-cog" "lock-open" "moon" "pause" "play" "power" "sun" "sunset"
 );
 
 /// A glyph for a menu row. macOS draws it as a template image, tinted to suit

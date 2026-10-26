@@ -59,9 +59,24 @@ winresource = "0.1"
 [target.'cfg(target_os = "macos")'.dependencies]
 libc                     = "0.2"
 objc2                    = "0.6"
-objc2-app-kit            = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSResponder", "NSRunningApplication", "NSWorkspace"] }
+objc2-app-kit            = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage", "NSMenu", "NSMenuItem", "NSResponder", "NSRunningApplication", "NSWorkspace"] }
 objc2-foundation         = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSRunLoop", "NSString"] }
 objc2-service-management = { version = "0.3", default-features = false, features = ["std", "SMAppService", "objc2", "objc2-foundation"] }
+
+# ---------------------------------------------------------------------------
+# Linux
+# ---------------------------------------------------------------------------
+# The tray goes through GTK and libappindicator, by way of tray-icon. X11's
+# gamma ramps are RandR requests; x11rb speaks the protocol itself, so there
+# is no libX11 to link, and it is already in the tree via global-hotkey.
+# wlroots' gamma control is a Wayland protocol, spoken in Rust the same way.
+# GNOME's and KDE's Night Light and the rest are gsettings, kwriteconfig6,
+# notify-send and xdg-open.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc                  = "0.2"
+wayland-client        = "0.31"
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+x11rb                 = { version = "0.13", features = ["randr"] }
 
 [profile.release]
 opt-level     = "z"

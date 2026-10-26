@@ -192,7 +192,8 @@ impl Worker {
         let gains = color::gains(kelvin);
         let try_at = |t: f64| {
             let g = gains.map(|v| v + (1.0 - v) * t);
-            gamma::set(g, brightness + (1.0 - brightness) * t)
+            let k = color::mix(kelvin, NEUTRAL_K as f64, t);
+            gamma::set(k, g, brightness + (1.0 - brightness) * t)
         };
         let reassert = self.applied_at.elapsed() >= REASSERT;
         if self.backoff > 0.0 && reassert {

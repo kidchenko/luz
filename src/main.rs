@@ -282,6 +282,10 @@ fn tray() {
         std::process::id()
     );
 
+    // Before GTK starts its threads, which would otherwise die of them.
+    #[cfg(target_os = "linux")]
+    let signals = block_quit_signals();
+
     // A second launch pauses or resumes the running instance and exits.
     let Some(signal) = single_instance::acquire() else {
         linfo!("another instance owns the tray; asked it to pause or resume, exiting");
@@ -310,6 +314,9 @@ fn tray() {
             return;
         }
     });
+
+    #[cfg(target_os = "linux")]
+    quit_on_signals(signals, proxy.clone());
 
     let summon_proxy = proxy.clone();
     signal.watch(move || {
@@ -358,6 +365,32 @@ fn tray() {
         }
         if app.is_some() {
             *control_flow = ControlFlow::Wait;
+        }
+    });
+}
+
+/// The signals that end a session or a terminal's Luz. X11 keeps a ramp after
+/// the process that set it is gone, so they must quit the way the menu does,
+/// putting the screens back. Blocked in every thread, and waited for in one.
+#[cfg(target_os = "linux")]
+fn block_quit_signals() -> libc::sigset_t {
+    unsafe {
+        let mut set: libc::sigset_t = std::mem::zeroed();
+        libc::sigemptyset(&mut set);
+        for s in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP] {
+            libc::sigaddset(&mut set, s);
+        }
+        libc::pthread_sigmask(libc::SIG_BLOCK, &set, std::ptr::null_mut());
+        set
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn quit_on_signals(set: libc::sigset_t, proxy: tao::event_loop::EventLoopProxy<UserEvent>) {
+    std::thread::spawn(move || {
+        let mut sig = 0;
+        if unsafe { libc::sigwait(&set, &mut sig) } == 0 {
+            let _ = proxy.send_event(UserEvent::Signal);
         }
     });
 }

@@ -1,8 +1,9 @@
-//! Whether f.lux is running too. Both set the same ramps, several times a
-//! minute each, and the screen flickers between the two. Someone moving to
-//! Luz has f.lux installed, so it is worth a word the first time it happens.
+//! Whether f.lux, or on Linux Redshift, Gammastep or wlsunset, is running too. Both set
+//! the same ramps, several times a minute each, and the screen flickers
+//! between the two. Someone moving to Luz has one installed, so it is worth a
+//! word the first time it happens.
 
-pub use imp::flux_running;
+pub use imp::running;
 
 #[cfg(windows)]
 mod imp {
@@ -12,9 +13,9 @@ mod imp {
         TH32CS_SNAPPROCESS,
     };
 
-    pub fn flux_running() -> bool {
+    pub fn running() -> Option<&'static str> {
         let Ok(snap) = (unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }) else {
-            return false;
+            return None;
         };
         let mut entry = PROCESSENTRY32W {
             dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
@@ -37,7 +38,7 @@ mod imp {
         unsafe {
             let _ = CloseHandle(snap);
         }
-        found
+        found.then_some("f.lux")
     }
 }
 
@@ -47,11 +48,34 @@ mod imp {
 
     const FLUX: &str = "org.herf.Flux";
 
-    pub fn flux_running() -> bool {
+    pub fn running() -> Option<&'static str> {
         let apps = NSWorkspace::sharedWorkspace().runningApplications();
-        apps.iter().any(|app| {
-            app.bundleIdentifier()
-                .is_some_and(|id| id.to_string() == FLUX)
+        apps.iter()
+            .any(|app| {
+                app.bundleIdentifier()
+                    .is_some_and(|id| id.to_string() == FLUX)
+            })
+            .then_some("f.lux")
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod imp {
+    /// Process names as the kernel keeps them, and what people call them.
+    const RIVALS: [(&str, &str); 4] = [
+        ("redshift", "Redshift"),
+        ("gammastep", "Gammastep"),
+        ("wlsunset", "wlsunset"),
+        ("xflux", "f.lux"),
+    ];
+
+    pub fn running() -> Option<&'static str> {
+        std::fs::read_dir("/proc").ok()?.flatten().find_map(|e| {
+            let comm = std::fs::read_to_string(e.path().join("comm")).ok()?;
+            RIVALS
+                .iter()
+                .find(|(c, _)| *c == comm.trim())
+                .map(|(_, name)| *name)
         })
     }
 }

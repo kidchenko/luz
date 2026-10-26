@@ -121,3 +121,27 @@ mod imp {
         out
     }
 }
+
+// ---------------------------------------------------------------------------
+// Linux
+// ---------------------------------------------------------------------------
+// `notify-send` comes with libnotify, which every desktop with notifications
+// has; it talks to the desktop's notification daemon over D-Bus.
+#[cfg(target_os = "linux")]
+mod imp {
+    use crate::log::{linfo, lwarn};
+
+    pub fn show(title: &str, line1: &str, line2: Option<&str>) {
+        let body = match line2 {
+            Some(l2) => format!("{line1}\n{l2}"),
+            None => line1.to_string(),
+        };
+        match std::process::Command::new("notify-send")
+            .args(["--app-name=Luz", "--icon=weather-clear", "--", title, &body])
+            .spawn()
+        {
+            Ok(_) => linfo!("notification shown: {title} / {line1}"),
+            Err(e) => lwarn!("could not show notification: {e}"),
+        }
+    }
+}

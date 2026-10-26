@@ -4,8 +4,8 @@
 //! aside: paused for an hour, or back on. That makes the binary a switch for
 //! free: pin it, or run `luz` from a terminal, for a moment of true colour.
 //!
-//! Windows carries the signal on a named auto-reset event; macOS on a Unix
-//! domain socket in the config directory.
+//! Windows carries the signal on a named auto-reset event; macOS and Linux on
+//! a Unix domain socket in the config directory.
 
 pub use imp::acquire;
 
@@ -131,9 +131,9 @@ mod imp {
 }
 
 // ---------------------------------------------------------------------------
-// macOS
+// macOS and Linux
 // ---------------------------------------------------------------------------
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 mod imp {
     use crate::log::{linfo, lwarn};
     use std::io::{Read, Write};

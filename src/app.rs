@@ -18,7 +18,7 @@ use crate::schedule::{self, Colours, Event, Phase, Plan};
 use crate::screen::{Screen, Shown};
 use crate::sun::{self, Day};
 use crate::util::{clock_label, local_now, now_unix, span, Local};
-use crate::{art, autostart, gamma, notify, rival, theme};
+use crate::{autostart, gamma, notify, rival, theme};
 
 use std::time::{Duration, Instant, SystemTime};
 use tao::event_loop::EventLoopProxy;
@@ -93,6 +93,9 @@ pub enum UserEvent {
     Summon,
     /// The backlight thread read new levels.
     Backlight,
+    /// Logout, `kill` or Ctrl+C, on Linux: quit as the menu does.
+    #[cfg(target_os = "linux")]
+    Signal,
 }
 
 #[derive(PartialEq, Eq)]
@@ -162,7 +165,7 @@ impl App {
         // On macOS the icon is a template: AppKit tints it for the menu bar.
         #[cfg(target_os = "macos")]
         let builder = TrayIconBuilder::new().with_icon_templated(icon);
-        #[cfg(windows)]
+        #[cfg(not(target_os = "macos"))]
         let builder = TrayIconBuilder::new().with_icon(icon);
         let tray = builder
             .with_tooltip("Luz")
@@ -230,6 +233,11 @@ impl App {
         match event {
             UserEvent::Tick => self.tick(),
             UserEvent::Backlight => self.rebuild_menu(false),
+            #[cfg(target_os = "linux")]
+            UserEvent::Signal => {
+                linfo!("quitting on a signal");
+                return Flow::Exit;
+            }
             UserEvent::Summon => {
                 if self.paused() {
                     self.resume();
@@ -512,12 +520,12 @@ impl App {
 
     fn check_rival(&mut self) {
         self.rival_checked = Instant::now();
-        if rival::flux_running() {
+        if let Some(name) = rival::running() {
             self.rival_mentioned = true;
-            lwarn!("f.lux is running too");
+            lwarn!("{name} is running too");
             notify::show(
-                "f.lux is running too",
-                "Quit f.lux, so the two don't take turns setting your screen's colour.",
+                &format!("{name} is running too"),
+                &format!("Quit {name}, so the two don't take turns setting your screen's colour."),
                 None,
             );
         }
@@ -585,7 +593,7 @@ impl App {
             Ok(img) => {
                 #[cfg(target_os = "macos")]
                 let _ = self.tray.set_icon_templated(Some(img));
-                #[cfg(windows)]
+                #[cfg(not(target_os = "macos"))]
                 let _ = self.tray.set_icon(Some(img));
             }
             Err(e) => lerror!("{e}"),
@@ -699,64 +707,34 @@ impl App {
             Face::Bedtime => "moon",
             Face::Paused => "pause",
         };
-        let status = IconMenuItem::with_id(
-            ID_INERT,
-            &self.header.0,
-            false,
-            art::glyph(face_glyph),
-            None,
-        );
+        let status = icon_item(ID_INERT, &self.header.0, false, face_glyph, None);
         let detail = MenuItem::with_id(ID_INERT, &self.header.1, false, None);
         let _ = menu.append_items(&[&status, &detail]);
         self.header_items = Some((status, detail));
         self.limit_rows(&menu, shown, unlocked);
         let _ = menu.append(&PredefinedMenuItem::separator());
 
+        // What people come for at the top, with glyphs only on the status
+        // line, the switch and Quit; plain submenus, and the rest under
+        // Settings.
         if self.paused() {
-            let _ = menu.append(&IconMenuItem::with_id(
-                ID_RESUME,
-                columns("Resume", Action::Pause.label()),
-                true,
-                art::glyph("play"),
-                None,
-            ));
+            let (text, keys) = self.keyed("Resume", Action::Pause);
+            let _ = menu.append(&icon_item(ID_RESUME, &text, true, "play", keys));
         } else {
-            let _ = menu.append(&IconMenuItem::with_id(
-                ID_PAUSE_HOUR,
-                columns("Pause for an hour", Action::Pause.label()),
-                true,
-                art::glyph("pause"),
-                None,
-            ));
+            let (text, keys) = self.keyed("Pause for an hour", Action::Pause);
+            let _ = menu.append(&icon_item(ID_PAUSE_HOUR, &text, true, "pause", keys));
             if let Some((event, _, at)) = self.next_morning() {
                 let what = match event {
                     Event::Wake => "Pause until morning",
                     _ => "Pause until sunrise",
                 };
-                let _ = menu.append(&IconMenuItem::with_id(
+                let _ = menu.append(&MenuItem::with_id(
                     ID_PAUSE_MORNING,
                     columns(what, &clock_label(at)),
                     true,
-                    art::glyph("sunrise"),
                     None,
                 ));
             }
-        }
-        let _ = menu.append(&PredefinedMenuItem::separator());
-
-        for (id, text, glyph, action) in [
-            (ID_WARMER, "Warmer", "flame", Action::Warmer),
-            (ID_COOLER, "Cooler", "snowflake", Action::Cooler),
-            (ID_DIMMER, "Dimmer", "sun-dim", Action::Dimmer),
-            (ID_BRIGHTER, "Brighter", "sun-medium", Action::Brighter),
-        ] {
-            let _ = menu.append(&IconMenuItem::with_id(
-                id,
-                columns(text, action.label()),
-                true,
-                art::glyph(glyph),
-                None,
-            ));
         }
         if self.adjust.is_some() {
             let until = self
@@ -764,21 +742,18 @@ impl App {
                 .next
                 .map(|(e, at)| format!("{} {}", e.label().to_lowercase(), clock_label(at)))
                 .unwrap_or_default();
-            let _ = menu.append(&IconMenuItem::with_id(
+            let _ = menu.append(&MenuItem::with_id(
                 ID_UNDO,
                 columns("Back to the schedule", &format!("held until {until}")),
                 true,
-                art::glyph("rotate-ccw"),
                 None,
             ));
         }
+        let _ = menu.append(&self.adjust_menu());
         if let Some(brightness) = backlight_menu(&self.backlight.monitors()) {
             let _ = menu.append(&brightness);
         }
-        let _ = menu.append(&PredefinedMenuItem::separator());
-
         let colours = Submenu::new("Colours", true);
-        colours.set_icon(art::glyph("palette"));
         let _ = colours.append_items(&[
             &kelvin_menu("Daytime", ID_DAY_K, self.cfg.day_kelvin, &DAY_PRESETS),
             &kelvin_menu(
@@ -796,25 +771,50 @@ impl App {
         ]);
         let _ = menu.append(&colours);
 
-        let settings = self.settings_menu(autostart_on);
-        let _ = menu.append(&settings);
         let _ = menu.append(&PredefinedMenuItem::separator());
-        let _ = menu.append(&IconMenuItem::with_id(
-            ID_UPDATES,
-            "Check for updates\u{2026}",
-            true,
-            art::glyph("refresh-cw"),
-            None,
-        ));
-        let _ = menu.append(&IconMenuItem::with_id(
+        let _ = menu.append(&self.settings_menu(autostart_on));
+        let _ = menu.append(&icon_item(
             ID_QUIT,
             "Quit Luz",
             true,
-            art::glyph("power"),
+            "power",
             shortcut('q'),
         ));
 
+        #[cfg(target_os = "macos")]
+        glyphs_beside_checkmarks(&menu);
         self.tray.set_menu(Some(Box::new(menu)));
+    }
+
+    /// Nudges off the schedule, held until its next change.
+    fn adjust_menu(&self) -> Submenu {
+        let sub = Submenu::new("Adjust", true);
+        for (id, text, action) in [
+            (ID_WARMER, "Warmer", Action::Warmer),
+            (ID_COOLER, "Cooler", Action::Cooler),
+            (ID_DIMMER, "Dimmer", Action::Dimmer),
+            (ID_BRIGHTER, "Brighter", Action::Brighter),
+        ] {
+            if id == ID_DIMMER {
+                let _ = sub.append(&PredefinedMenuItem::separator());
+            }
+            let (text, keys) = self.keyed(text, action);
+            let _ = sub.append(&MenuItem::with_id(id, text, true, keys));
+        }
+        sub
+    }
+
+    /// A row's text and shortcut, while the shortcuts are on. macOS draws the
+    /// keys in the menu's own column, the way it does \u{2318}Q; Windows tray
+    /// menus can't take shortcuts, so there they follow a tab.
+    fn keyed(&self, text: &str, action: Action) -> (String, Option<Accelerator>) {
+        if !self.cfg.hotkeys {
+            (text.to_string(), None)
+        } else if cfg!(target_os = "macos") {
+            (text.to_string(), Some(action.accelerator()))
+        } else {
+            (columns(text, action.label()), None)
+        }
     }
 
     /// When Windows won't let the screen go as warm as asked: why, and the
@@ -836,33 +836,32 @@ impl App {
                     None,
                 ));
             } else {
-                let _ = menu.append(&IconMenuItem::with_id(
+                let _ = menu.append(&icon_item(
                     ID_UNLOCK,
                     "Allow warmer colours\u{2026}",
                     true,
-                    art::glyph("lock-open"),
+                    "lock-open",
                     None,
                 ));
             }
         } else if shown.screens == 0 && !self.paused() {
-            let _ = menu.append(&MenuItem::with_id(
-                ID_INERT,
-                "No screen is taking Luz's colours",
-                false,
-                None,
-            ));
+            let why = if cfg!(target_os = "linux") {
+                "This desktop won't let Luz change colours"
+            } else {
+                "No screen is taking Luz's colours"
+            };
+            let _ = menu.append(&MenuItem::with_id(ID_INERT, why, false, None));
         }
     }
 
     fn settings_menu(&self, autostart_on: bool) -> Submenu {
         let settings = Submenu::new("Settings", true);
-        settings.set_icon(art::glyph("settings"));
 
         let place = match &self.place {
             Some(p) => p.describe(),
             None => "Location unknown: set it in the settings file".into(),
         };
-        let place = IconMenuItem::with_id(ID_INERT, place, false, art::glyph("map-pin"), None);
+        let place = MenuItem::with_id(ID_INERT, place, false, None);
 
         let bed = Submenu::new(
             columns(
@@ -875,7 +874,6 @@ impl App {
             ),
             true,
         );
-        bed.set_icon(art::glyph("bed"));
         let _ = bed.append(&CheckMenuItem::with_id(
             ID_BEDTIME,
             "Bedtime mode",
@@ -895,7 +893,6 @@ impl App {
         }
 
         let wake = Submenu::new(columns("Wake time", &self.cfg.wake_at), true);
-        wake.set_icon(art::glyph("alarm-clock"));
         for t in with_current(&WAKE_TIMES, &self.cfg.wake_at) {
             let _ = wake.append(&CheckMenuItem::with_id(
                 format!("{ID_WAKE_AT}{t}"),
@@ -942,11 +939,11 @@ impl App {
             None,
         );
         let login = CheckMenuItem::with_id(ID_AUTOSTART, "Run at login", true, autostart_on, None);
-        let edit = IconMenuItem::with_id(
+        let edit = icon_item(
             ID_EDIT,
             "Edit settings file\u{2026}",
             true,
-            art::glyph("file-cog"),
+            "file-cog",
             shortcut(','),
         );
         let version = MenuItem::with_id(
@@ -958,8 +955,10 @@ impl App {
         let sep = PredefinedMenuItem::separator();
         let sep2 = PredefinedMenuItem::separator();
         let sep3 = PredefinedMenuItem::separator();
-        let items: [&dyn IsMenuItem; 11] = [
+        let updates = MenuItem::with_id(ID_UPDATES, "Check for updates\u{2026}", true, None);
+        let items: [&dyn IsMenuItem; 12] = [
             &place, &sep, &bed, &wake, &fade, &keys, &login, &sep2, &edit, &sep3, &version,
+            &updates,
         ];
         let _ = settings.append_items(&items);
         settings
@@ -1002,7 +1001,6 @@ fn backlight_menu(monitors: &[Monitor]) -> Option<Submenu> {
             sub
         }
     };
-    menu.set_icon(art::glyph("sun-medium"));
     Some(menu)
 }
 
@@ -1069,10 +1067,61 @@ fn menu_is_open() -> bool {
 }
 
 /// Windows has no such signal. Its tray menu runs a modal loop of its own,
-/// and replacing the menu there doesn't close it.
-#[cfg(windows)]
+/// and replacing the menu there doesn't close it. On Linux the menu belongs
+/// to the panel, which takes a new one whenever it comes.
+#[cfg(not(target_os = "macos"))]
 fn menu_is_open() -> bool {
     false
+}
+
+/// A row with a Lucide glyph beside it, tinted by macOS to suit the menu.
+/// Linux panels draw menus in whatever theme they like, where one ink would
+/// vanish on half of them, so there the row goes without.
+fn icon_item(
+    id: &str,
+    text: &str,
+    enabled: bool,
+    glyph: &str,
+    accel: Option<Accelerator>,
+) -> IconMenuItem {
+    let item = IconMenuItem::with_id(id, text, enabled, None, accel);
+    #[cfg(target_os = "macos")]
+    item.set_icon_templated(crate::art::glyph(glyph));
+    #[cfg(windows)]
+    item.set_icon(crate::art::glyph(glyph));
+    #[cfg(target_os = "linux")]
+    let _ = glyph;
+    item
+}
+
+/// AppKit draws a row's image after the checkmark column, so rows with a
+/// glyph start their text further right than the rest. Moved into that column
+/// as the row's state image, glyphs and checkmarks share it and every label
+/// lines up. Windows menus already draw icons there.
+#[cfg(target_os = "macos")]
+fn glyphs_beside_checkmarks(menu: &Menu) {
+    use objc2_app_kit::NSMenu;
+    use tray_icon::menu::ContextMenu;
+    fn walk(menu: &NSMenu) {
+        for item in menu.itemArray() {
+            if let Some(image) = item.image() {
+                // Unsafe only because AppKit can't check the image's type;
+                // it's the one the row was already drawing.
+                unsafe {
+                    item.setOnStateImage(Some(&image));
+                    item.setOffStateImage(Some(&image));
+                }
+                item.setImage(None);
+            }
+            if let Some(sub) = item.submenu() {
+                walk(&sub);
+            }
+        }
+    }
+    // Owned by `menu`, which outlives this call.
+    if let Some(ns) = unsafe { menu.ns_menu().cast::<NSMenu>().as_ref() } {
+        walk(ns);
+    }
 }
 
 /// ⌘ and a key, on macOS. Windows tray menus can't take keyboard shortcuts.
@@ -1103,7 +1152,7 @@ fn unlock_warmer() {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(not(windows))]
 fn unlock_warmer() {}
 
 /// Open config.json in a text editor, creating it first if need be.
@@ -1119,6 +1168,8 @@ fn open_config() {
         .arg("-t")
         .arg(&path)
         .spawn();
+    #[cfg(target_os = "linux")]
+    let spawned = std::process::Command::new("xdg-open").arg(&path).spawn();
     if let Err(e) = spawned {
         lwarn!("could not open {}: {e}", path.display());
     }
@@ -1152,12 +1203,16 @@ fn check_for_updates() {
             Err(format!("error {}", rc.0 as isize))
         }
     };
-    #[cfg(target_os = "macos")]
-    let opened = std::process::Command::new("/usr/bin/open")
-        .arg(url)
-        .spawn()
-        .map(drop)
-        .map_err(|e| e.to_string());
+    #[cfg(not(windows))]
+    let opened = std::process::Command::new(if cfg!(target_os = "macos") {
+        "/usr/bin/open"
+    } else {
+        "xdg-open"
+    })
+    .arg(url)
+    .spawn()
+    .map(drop)
+    .map_err(|e| e.to_string());
     if let Err(e) = opened {
         lwarn!("could not open {url}: {e}");
     }

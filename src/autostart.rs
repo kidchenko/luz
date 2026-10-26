@@ -3,8 +3,10 @@
 //! On Windows this is the per-user Run key. On macOS 13+ it is `SMAppService`,
 //! the API behind System Settings > General > Login Items, so Luz shows up
 //! there by name and the user can switch it off from either side; macOS 11 and
-//! 12 fall back to a LaunchAgent plist. All of them need no elevation and are
-//! trivially inspectable (Task Manager's Startup tab / Login Items).
+//! 12 fall back to a LaunchAgent plist. On Linux it is a desktop entry in
+//! `~/.config/autostart`, the freedesktop.org way every desktop reads. All of
+//! them need no elevation and are trivially inspectable (Task Manager's
+//! Startup tab / Login Items / the desktop's startup apps).
 
 pub use imp::{is_enabled, set};
 
@@ -250,6 +252,77 @@ mod imp {
             s.replace('&', "&amp;")
                 .replace('<', "&lt;")
                 .replace('>', "&gt;")
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Linux
+// ---------------------------------------------------------------------------
+#[cfg(target_os = "linux")]
+mod imp {
+    use std::path::PathBuf;
+
+    fn entry_path() -> Option<PathBuf> {
+        crate::config::Config::dir()
+            .and_then(|d| d.parent().map(|p| p.join("autostart/luz.desktop")))
+    }
+
+    /// Presence of the entry is the switch, as with the macOS plist, unless
+    /// it says `Hidden=true`, which is how some desktops' settings switch an
+    /// entry off.
+    pub fn is_enabled() -> bool {
+        entry_path()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .is_some_and(|t| !t.lines().any(|l| l.trim() == "Hidden=true"))
+    }
+
+    pub fn set(enabled: bool) -> Result<(), String> {
+        let path = entry_path().ok_or("no HOME in environment")?;
+        if !enabled {
+            return match std::fs::remove_file(&path) {
+                Ok(()) => Ok(()),
+                // Already gone is the desired end state.
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(e) => Err(format!("could not remove the autostart entry: {e}")),
+            };
+        }
+        let exe = std::env::current_exe()
+            .map_err(|e| format!("could not resolve the executable path: {e}"))?;
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir)
+                .map_err(|e| format!("could not create the autostart dir: {e}"))?;
+        }
+        std::fs::write(&path, desktop_entry(&exe.to_string_lossy()))
+            .map_err(|e| format!("could not write the autostart entry: {e}"))
+    }
+
+    /// Exec is quoted, with the characters the spec reserves escaped, so a
+    /// path with spaces still runs.
+    fn desktop_entry(exe: &str) -> String {
+        let quoted = exe
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('`', "\\`")
+            .replace('$', "\\$");
+        format!(
+            "[Desktop Entry]\n\
+             Type=Application\n\
+             Name=Luz\n\
+             Comment=Warm your screen at night\n\
+             Exec=\"{quoted}\"\n\
+             Icon=weather-clear\n\
+             Terminal=false\n\
+             X-GNOME-Autostart-enabled=true\n"
+        )
+    }
+
+    #[cfg(test)]
+    mod tests {
+        #[test]
+        fn exec_survives_spaces_and_quotes() {
+            let e = super::desktop_entry("/opt/my apps/lu\"z");
+            assert!(e.contains("Exec=\"/opt/my apps/lu\\\"z\"\n"), "{e}");
         }
     }
 }

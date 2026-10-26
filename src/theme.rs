@@ -1,4 +1,4 @@
-//! Whether the Windows taskbar is dark, so the cup can be drawn in a colour
+//! Whether the Windows taskbar is dark, so the sun can be drawn in a colour
 //! that shows up against it. macOS needs none of this: the menu bar icon is a
 //! template image and AppKit tints it.
 
@@ -76,5 +76,14 @@ mod imp {
     /// tints for the menu bar itself.
     pub fn taskbar_is_dark() -> bool {
         false
+    }
+}
+
+/// Linux panels can't be asked. GNOME's top bar is always dark, and so are
+/// most others by default.
+#[cfg(target_os = "linux")]
+mod imp {
+    pub fn taskbar_is_dark() -> bool {
+        true
     }
 }

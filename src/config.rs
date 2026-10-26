@@ -72,6 +72,16 @@ impl Config {
         std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Application Support/Luz"))
     }
 
+    /// `$XDG_CONFIG_HOME/luz`, which is `~/.config/luz` unless set.
+    #[cfg(target_os = "linux")]
+    pub fn dir() -> Option<PathBuf> {
+        std::env::var_os("XDG_CONFIG_HOME")
+            .filter(|d| !d.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+            .map(|d| d.join("luz"))
+    }
+
     pub fn path() -> Option<PathBuf> {
         Self::dir().map(|d| d.join("config.json"))
     }

@@ -94,12 +94,13 @@ mod imp {
 }
 
 // ---------------------------------------------------------------------------
-// macOS
+// macOS and Linux
 // ---------------------------------------------------------------------------
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 mod imp {
     /// `/etc/localtime` links into the zoneinfo database, and the rest of
-    /// the link after `zoneinfo/` is the zone's name. `TZ` wins when set.
+    /// the link after `zoneinfo/` is the zone's name. `TZ` wins when set, and
+    /// Debian's `/etc/timezone` names it where the link is a plain copy.
     pub fn zone() -> Option<String> {
         if let Ok(tz) = std::env::var("TZ") {
             let tz = tz.trim_start_matches(':');
@@ -107,10 +108,15 @@ mod imp {
                 return Some(tz.to_string());
             }
         }
-        let target = std::fs::read_link("/etc/localtime").ok()?;
-        let target = target.to_string_lossy();
-        let (_, name) = target.split_once("zoneinfo/")?;
-        Some(name.to_string())
+        if let Ok(target) = std::fs::read_link("/etc/localtime") {
+            let target = target.to_string_lossy();
+            if let Some((_, name)) = target.split_once("zoneinfo/") {
+                return Some(name.to_string());
+            }
+        }
+        let name = std::fs::read_to_string("/etc/timezone").ok()?;
+        let name = name.trim();
+        name.contains('/').then(|| name.to_string())
     }
 }
 

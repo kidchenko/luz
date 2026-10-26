@@ -5,7 +5,7 @@
 # Luz
 
 Warm your screen at night, from the tray.<br>
-Like f.lux, in one small app, on Windows and macOS.
+Like f.lux, in one small app, on Windows, macOS and Linux.
 
 [Website](https://josebarbosa.dev/luz/) &nbsp;|&nbsp; [Download](https://github.com/kidchenko/luz/releases/latest)
 
@@ -48,10 +48,9 @@ under it says what comes next (**Bedtime at 23:00**). Under them:
 |---|---|
 | **Pause for an hour** | Back to your screen's own colours for an hour, for photos or design work. While paused, this reads **Resume**. |
 | **Pause until sunrise** | Off for the rest of the night. With Bedtime mode on it's **Pause until morning**, at your wake time. |
-| **Warmer, Cooler** | A step at a time, on top of the schedule. |
-| **Dimmer, Brighter** | Turns your monitors' own backlight down or up, 10% at a time. Where no monitor lets Luz do that, it darkens the picture instead, down to 30%. [More below.](#brightness) |
+| **Back to the schedule** | Drops your adjustments. They also go by themselves at the next change, so a nudge at 21:00 lasts until bedtime. Only there while you've adjusted. |
+| **Adjust** | **Warmer** and **Cooler**, a step at a time on top of the schedule. **Dimmer** and **Brighter** turn your monitors' own backlight down or up, 10% at a time; where no monitor lets Luz do that, they darken the picture instead, down to 30%. [More below.](#brightness) |
 | **Brightness** | Each monitor's backlight level, with 100, 75, 50, 25 and 0% to pick from. Only there when a monitor answers. |
-| **Back to the schedule** | Drops your adjustments. They also go by themselves at the next change, so a nudge at 21:00 lasts until bedtime. |
 | **Colours** | The **Daytime**, **Sunset** and **Bedtime** colours, from f.lux's list: Daylight 6500 K, Sunlight 5500 K, Fluorescent 4200 K, Halogen 3400 K, Incandescent 2700 K, Candle 1900 K, Ember 1200 K, and a few in between. |
 
 **Settings** holds the things you set once:
@@ -66,10 +65,11 @@ under it says what comes next (**Bedtime at 23:00**). Under them:
 | **Run at login** | Just for your user, no admin needed. On macOS it shows up in System Settings > General > Login Items. Move Luz.app to Applications first. |
 | **Edit settings file…** | Opens the config file in a text editor (⌘, on macOS). [More below.](#configuration) |
 
-Under that is the version you're running. **Check for updates…** opens
+Under that is the version you're running, and **Check for updates…** opens
 Luz's web page in your browser with that version, and the page asks GitHub
-whether there's a newer one. Luz itself still doesn't use the network. **Quit
-Luz** (⌘Q on macOS) puts your screen's colours back as it goes.
+whether there's a newer one. Luz itself still doesn't use the network.
+**Quit Luz** (⌘Q on macOS), next to Settings, puts your screen's colours
+back as it goes.
 
 ### The day
 
@@ -124,14 +124,16 @@ Laptop screens don't speak DDC/CI; their brightness keys already do this.
 Neither do some docks, USB-C adapters and TVs, and some monitors have DDC/CI
 switched off in their on-screen menu. With no monitor answering, Dimmer and
 Brighter darken the picture with the gamma ramp instead, and that lasts until
-the schedule next changes. On macOS this is the only kind for now: monitor
-brightness there needs private system services, and isn't in Luz yet.
+the schedule next changes. On macOS and Linux this is the only kind for now:
+monitor brightness there needs private system services or `/dev/i2c` access,
+and isn't in Luz yet. GNOME and KDE on Wayland can't darken the picture
+either (see [Linux](#linux)), so there Dimmer and Brighter do nothing.
 
 ### Keyboard shortcuts
 
 The same keys as f.lux, so your muscle memory still works:
 
-| Windows | macOS | |
+| Windows, Linux | macOS | |
 |---|---|---|
 | Alt+End | ⌥End | Pause for an hour, or resume |
 | Alt+Shift+PgDn | ⌥⇧⇟ | Warmer |
@@ -141,7 +143,8 @@ The same keys as f.lux, so your muscle memory still works:
 
 On a Mac laptop, End and Page Up/Down are fn with the arrow keys. If another
 app already has one of these (usually f.lux itself), Luz skips that one and
-the rest still work.
+the rest still work. On Linux the shortcuts need X11; a Wayland session
+doesn't let apps listen for keys system-wide.
 
 ### Coming from f.lux
 
@@ -204,9 +207,52 @@ Homebrew takes care of that for you. Otherwise, do one of these once:
 Move it into Applications before you do this. It won't work while the app is
 still inside the disk image.
 
+### Linux
+
+```bash
+curl -L https://github.com/kidchenko/luz/releases/latest/download/luz-x86_64-linux.tar.gz | tar xz
+./luz/luz
+```
+
+Put `luz/luz` wherever you keep programs (`~/.local/bin` is a good place)
+before you switch on **Run at login** in Settings, which starts it with your
+desktop from then on.
+
+It needs GTK 3 and the AppIndicator library for its tray icon. Most desktops
+have both already; if no sun shows up, install it:
+
+```bash
+sudo apt install libayatana-appindicator3-1      # Debian, Ubuntu, Mint
+sudo dnf install libayatana-appindicator-gtk3    # Fedora
+```
+
+GNOME hides tray icons unless the AppIndicator extension is on. Ubuntu turns
+it on for you; elsewhere, install
+[AppIndicator and KStatusNotifierItem Support](https://extensions.gnome.org/extension/615/appindicator-support/).
+
+How Luz changes the colour depends on the session:
+
+| | |
+|---|---|
+| **X11**, any desktop | Gamma ramps, just like Windows and macOS. |
+| **Hyprland, Sway** and other wlroots compositors (niri, river, labwc) | Gamma ramps too, through the compositor's gamma control. Everything but the keyboard shortcuts works. The compositor puts its own colours back the moment Luz quits, crash or not. |
+| **GNOME on Wayland** | GNOME keeps the ramps to itself, so Luz drives GNOME's own **Night Light** instead: always on at Luz's colour, off for daylight. Dimmer and Brighter can't work through it. Your Night Light settings are saved first and put back when Luz quits. |
+| **KDE Plasma 6 on Wayland** | The same, with KDE's **Night Light** (in `kwinrc`). |
+| **Other Wayland desktops** | Not yet. Luz says so in its menu. |
+
+To check which you have: `echo $XDG_SESSION_TYPE`.
+
+Only one app can hold a screen's gamma at a time, so quit wlsunset or
+gammastep first (Luz says so if it finds one running). On **Omarchy**, its own
+Nightlight toggle is hyprsunset, which tints on top of Luz rather than taking
+turns with it: leave that toggle off. The tray icon shows up in Waybar's
+tray, which Omarchy, and most Hyprland and Sway setups, already have.
+
 ### Requirements
 
-Windows 10 or later. macOS 11 or later.
+Windows 10 or later. macOS 11 or later. Linux on x86_64 with glibc 2.35 or
+later (Ubuntu 22.04, Debian 12, Fedora 36), on X11, a wlroots compositor,
+GNOME or KDE Plasma 6.
 
 ## How it works
 
@@ -220,6 +266,10 @@ recordings come out in their true colours.
 |---|---|
 | **Windows** | `SetDeviceGammaRamp`, for each screen on the desktop |
 | **macOS** | `CGSetDisplayTransferByTable`, for each online display |
+| **Linux, X11** | RandR's `SetCrtcGamma`, for each lit CRTC |
+| **Linux, wlroots on Wayland** | `zwlr_gamma_control_v1`, for each output |
+| **Linux, GNOME on Wayland** | Night Light's temperature, through `gsettings` |
+| **Linux, KDE on Wayland** | Night Light's temperature, through `kwriteconfig6` |
 
 The colour of each temperature comes from Krystek's fit to the colour of a
 glowing black body, worked out relative to 6500 K so that daylight leaves your
@@ -241,7 +291,8 @@ the license.
 ## Configuration
 
 `%APPDATA%\Luz\config.json` on Windows,
-`~/Library/Application Support/Luz/config.json` on macOS. You can do
+`~/Library/Application Support/Luz/config.json` on macOS,
+`~/.config/luz/config.json` on Linux. You can do
 everything from the menu, but you can edit the file if you'd rather. Luz
 notices changes within a second, so there's no need to restart it.
 
@@ -342,11 +393,20 @@ choco install innosetup -y     # only for the installer
 ./build.sh --universal --dmg   # what a release ships: arm64 + x86_64, in a .dmg
 ```
 
+On Linux, with the GTK and AppIndicator headers:
+
+```bash
+sudo apt install libgtk-3-dev libxdo-dev libayatana-appindicator3-dev
+cargo build --release          # target/release/luz
+```
+
 All you need is the Rust toolchain. The schedule, the colours, the sun and the
-menu are shared. Only the OS-specific parts are split: GDI vs CoreGraphics
-ramps, the Windows time zone name vs `/etc/localtime`, and WinRT toasts vs
-`osascript`. Monitor brightness (`src/backlight.rs`) is Windows only for now,
-through the Monitor Configuration API.
+menu are shared. Only the OS-specific parts are split: GDI vs CoreGraphics vs
+RandR vs wlroots ramps (or GNOME's or KDE's Night Light), the Windows time
+zone name vs
+`/etc/localtime`, and WinRT toasts vs `osascript` vs `notify-send`. Monitor
+brightness (`src/backlight.rs`) is Windows only for now, through the Monitor
+Configuration API.
 
 `cargo test` covers everything that doesn't need a desktop: sunrise and sunset
 against NOAA's full calculator, the schedule through a day with and without
@@ -363,8 +423,9 @@ served by GitHub Pages from `/docs`.
 1. Bump `version` in `Cargo.toml` and add a section to `CHANGELOG.md`.
 2. `git tag vX.Y.Z && git push origin vX.Y.Z`
 
-The `release` workflow builds the DMG on macOS and the installer and portable
-exe on Windows, puts them on a GitHub Release with checksums, and updates the
+The `release` workflow builds the DMG on macOS, the installer and portable
+exe on Windows and a tarball on Linux, puts them on a GitHub Release with
+checksums, and updates the
 Chocolatey and winget manifests with the new version and checksums:
 
 - **Chocolatey** is pushed automatically when the `CHOCO_API_KEY` secret is set.
@@ -382,6 +443,9 @@ everything and uploads it as artifacts, but doesn't publish anything.
 
 - **Monitor brightness on macOS.** It needs the private services MonitorControl
   and Lunar use; for now Dimmer and Brighter darken the picture there.
+- **Other Wayland desktops.** COSMIC, for one, has no way in yet.
+- **Linux packages.** A `.deb`, an AUR package or a Flatpak, rather than a
+  tarball.
 - **Brightness on the schedule.** Dimming at sunset along with the colour.
 - **Pause for an app.** Off while a photo editor or a game is in front, as
   f.lux does.

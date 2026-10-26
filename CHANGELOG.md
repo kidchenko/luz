@@ -2,7 +2,20 @@
 
 ## Unreleased
 
-- **Check for updates…** in the menu opens Luz's web page with your version,
+- Linux. On X11, and on Hyprland, Sway and other wlroots compositors, Luz
+  sets the gamma ramps as on Windows and macOS. On GNOME and KDE with
+  Wayland it drives the desktop's own Night Light, and puts your Night Light
+  settings back when it quits. Run at login, notifications and the keyboard
+  shortcuts (X11) work too, and Redshift, Gammastep or wlsunset running
+  alongside gets the same word f.lux does. Releases carry `luz-x86_64-linux.tar.gz`.
+
+- A tidier menu. Warmer, Cooler, Dimmer and Brighter are under **Adjust**,
+  there are icons only on the status line, Pause and Quit, and **Check for
+  updates…** is in Settings under the version.
+- On macOS, icons and checkmarks share one column, so every label lines up,
+  the icons follow the menu's light or dark look, and the keyboard shortcuts
+  sit in the menu's own shortcut column like ⌘Q, shown only while they're on.
+- **Check for updates…** in Settings opens Luz's web page with your version,
   and the page says whether a newer one is out. Luz still doesn't use the
   network itself.
 

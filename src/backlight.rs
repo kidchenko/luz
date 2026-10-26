@@ -219,7 +219,10 @@ mod imp {
 // DDC/CI on a Mac goes through private IOKit services (IOAVService on Apple
 // silicon), as MonitorControl and Lunar do. Not here yet: with no monitors
 // listed, Luz dims with the gamma ramp instead.
-#[cfg(target_os = "macos")]
+//
+// Linux: DDC/CI goes through /dev/i2c-*, which needs a group most users
+// aren't in. Not here either.
+#[cfg(not(windows))]
 mod imp {
     use super::Monitor;
 

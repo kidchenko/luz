@@ -42,7 +42,7 @@ pub fn local_now() -> Local {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 pub fn local_now() -> Local {
     let dur = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
