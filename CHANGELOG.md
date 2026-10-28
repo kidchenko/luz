@@ -8,6 +8,9 @@
   settings back when it quits. Run at login, notifications and the keyboard
   shortcuts (X11) work too, and Redshift, Gammastep or wlsunset running
   alongside gets the same word f.lux does. Releases carry `luz-x86_64-linux.tar.gz`.
+- A welcome on first launch, saying where Luz went and what it will do
+  tonight: "Your screen turns warmer at sunset, 17:52…", or that it already
+  has. Once only.
 
 - A tidier menu. Warmer, Cooler, Dimmer and Brighter are under **Adjust**,
   there are icons only on the status line, Pause and Quit, and **Check for

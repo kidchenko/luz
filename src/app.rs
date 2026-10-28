@@ -153,6 +153,8 @@ impl App {
     pub fn new(proxy: EventLoopProxy<UserEvent>) -> Result<Self, String> {
         forward_menu_events(&proxy);
 
+        // No settings file yet: Luz has never run here, or never been touched.
+        let first_run = Config::path().is_some_and(|p| !p.exists());
         let cfg = Config::load();
         let place = Place::find(cfg.latitude, cfg.longitude);
         match &place {
@@ -223,6 +225,9 @@ impl App {
             app.target.0,
             app.plan.next
         );
+        if first_run {
+            app.welcome();
+        }
         app.check_rival();
         app.paint_icon(true);
         app.rebuild_menu(true);
@@ -516,6 +521,47 @@ impl App {
 
     fn next_morning(&self) -> Option<(Event, f64, f64)> {
         schedule::next_morning(self.now.minute, self.sun.day, &self.colours())
+    }
+
+    /// Say where Luz went and what it will do, once: a tray app that starts
+    /// silently looks like one that didn't start. Saving the settings is what
+    /// makes it once.
+    fn welcome(&mut self) {
+        let screens = self.screen.as_ref().map_or(1, |s| s.shown().screens);
+        let what = if screens == 0 {
+            if cfg!(target_os = "linux") {
+                "This desktop won't let Luz change colours, so it can't warm your screen here."
+                    .to_string()
+            } else {
+                "No screen is taking Luz's colours yet.".to_string()
+            }
+        } else {
+            let when = match (self.plan.phase, self.sun.day) {
+                (Phase::Day, Day::Normal { set, .. }) => format!(
+                    "Your screen turns warmer at sunset, {}, and back to daylight in the morning.",
+                    clock_label(set)
+                ),
+                (Phase::Evening | Phase::Bedtime, _) => match self.next_morning() {
+                    Some((_, _, at)) => format!(
+                        "The sun has set, so your screen is warmer now. It's back to daylight at {}.",
+                        clock_label(at)
+                    ),
+                    None => "The sun has set, so your screen is warmer now.".into(),
+                },
+                _ => "Your screen turns warmer after sunset and back to daylight in the morning."
+                    .into(),
+            };
+            when + " Click the sun to pause it or change the colours."
+        };
+        let title = if cfg!(target_os = "macos") {
+            "Luz is in your menu bar"
+        } else {
+            "Luz is in your tray"
+        };
+        // One body, not a second line: macOS would show that as a subtitle,
+        // above the sentence it follows.
+        notify::show(title, &what, None);
+        self.save();
     }
 
     fn check_rival(&mut self) {
