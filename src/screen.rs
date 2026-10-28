@@ -11,11 +11,11 @@
 
 use crate::color::{self, NEUTRAL_K};
 use crate::gamma;
-use crate::log::{linfo, lwarn};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
+use traykit::{linfo, lwarn};
 
 const FRAME: Duration = Duration::from_millis(33);
 /// How often to set unchanged ramps again.

@@ -12,13 +12,13 @@ use crate::color::{self, MAX_K, MIN_K, NEUTRAL_K};
 use crate::config::{Config, FAST_FADE, SLOW_FADE};
 use crate::hotkeys::{Action, Hotkeys};
 use crate::icon::{self, Face};
-use crate::log::{lerror, linfo, lwarn};
 use crate::place::Place;
 use crate::schedule::{self, Colours, Event, Phase, Plan};
 use crate::screen::{Screen, Shown};
 use crate::sun::{self, Day};
 use crate::util::{clock_label, local_now, now_unix, span, Local};
-use crate::{autostart, gamma, notify, rival, theme};
+use crate::{autostart, gamma, notify, rival};
+use traykit::{lerror, linfo, lwarn};
 
 use std::time::{Duration, Instant, SystemTime};
 use tao::event_loop::EventLoopProxy;
@@ -160,7 +160,7 @@ impl App {
             None => lwarn!("location unknown; using 07:00 to 19:00 for the sun"),
         }
 
-        let dark_taskbar = theme::taskbar_is_dark();
+        let dark_taskbar = traykit::theme::tray_is_dark();
         let icon = tray_image(Face::Day, dark_taskbar)?;
         // On macOS the icon is a template: AppKit tints it for the menu bar.
         #[cfg(target_os = "macos")]
@@ -345,7 +345,7 @@ impl App {
 
     fn tick(&mut self) {
         self.reload_if_edited();
-        let dark = theme::taskbar_is_dark();
+        let dark = traykit::theme::tray_is_dark();
         if dark != self.dark_taskbar {
             self.dark_taskbar = dark;
             self.paint_icon(true);
@@ -1178,44 +1178,10 @@ fn open_config() {
 /// Open Luz's web page in the browser, which compares the version it's given
 /// with the latest release. Luz itself never goes on the network.
 fn check_for_updates() {
-    let url = concat!("https://josebarbosa.dev/luz/?v=", env!("CARGO_PKG_VERSION"));
-    #[cfg(windows)]
-    let opened = {
-        use crate::util::{pcwstr, wide};
-        use windows::core::PCWSTR;
-        use windows::Win32::UI::Shell::ShellExecuteW;
-        use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
-        let (verb, file) = (wide("open"), wide(url));
-        let rc = unsafe {
-            ShellExecuteW(
-                None,
-                pcwstr(&verb),
-                pcwstr(&file),
-                PCWSTR::null(),
-                PCWSTR::null(),
-                SW_SHOWNORMAL,
-            )
-        };
-        // Above 32 is success, as for elevate().
-        if rc.0 as isize > 32 {
-            Ok(())
-        } else {
-            Err(format!("error {}", rc.0 as isize))
-        }
-    };
-    #[cfg(not(windows))]
-    let opened = std::process::Command::new(if cfg!(target_os = "macos") {
-        "/usr/bin/open"
-    } else {
-        "xdg-open"
-    })
-    .arg(url)
-    .spawn()
-    .map(drop)
-    .map_err(|e| e.to_string());
-    if let Err(e) = opened {
-        lwarn!("could not open {url}: {e}");
-    }
+    traykit::util::shell_open(concat!(
+        "https://josebarbosa.dev/luz/?v=",
+        env!("CARGO_PKG_VERSION")
+    ));
 }
 
 fn tray_image(face: Face, dark: bool) -> Result<Icon, String> {

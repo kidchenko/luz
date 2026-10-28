@@ -19,8 +19,8 @@ pub use imp::show;
 // shortcut is detected and the toasts get the right name and icon.
 #[cfg(windows)]
 mod imp {
-    use crate::log::{linfo, lwarn};
     use tauri_winrt_notification::{Duration, Toast};
+    use traykit::{linfo, lwarn};
 
     /// Matches the `AppUserModelID` the installer stamps on the Start Menu
     /// shortcut. The two must stay in step: Windows resolves a toast's name and
@@ -76,7 +76,7 @@ mod imp {
 // UserNotifications plumbing.
 #[cfg(target_os = "macos")]
 mod imp {
-    use crate::log::{linfo, lwarn};
+    use traykit::{linfo, lwarn};
 
     pub fn show(title: &str, line1: &str, line2: Option<&str>) {
         // Notification anatomy on macOS is title / subtitle / body. We map the
@@ -129,7 +129,7 @@ mod imp {
 // has; it talks to the desktop's notification daemon over D-Bus.
 #[cfg(target_os = "linux")]
 mod imp {
-    use crate::log::{linfo, lwarn};
+    use traykit::{linfo, lwarn};
 
     pub fn show(title: &str, line1: &str, line2: Option<&str>) {
         let body = match line2 {

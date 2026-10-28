@@ -21,8 +21,11 @@
 //! | `art`             | the menu's glyphs, from Lucide                       |
 //! | `notify`          | notifications                                        |
 //! | `app`             | the tray icon and its menu                           |
-//! | `single_instance` | one copy at a time; relaunching pauses and resumes   |
 //! | `autostart`       | run at login                                         |
+//!
+//! The log, the config file's home, single instance and the taskbar's theme
+//! come from `traykit`, shared with the other kidchenko tray apps. A second
+//! launch pauses or resumes the running copy.
 
 mod app;
 mod art;
@@ -33,24 +36,21 @@ mod config;
 mod gamma;
 mod hotkeys;
 mod icon;
-mod log;
 mod notify;
 mod place;
 mod rival;
 mod schedule;
 mod screen;
-mod single_instance;
 mod sun;
-mod theme;
 mod util;
 mod zones;
 
 use app::{App, Flow, UserEvent};
 use config::Config;
-use log::{lerror, linfo};
 use place::Place;
 use tao::event::{Event, StartCause};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
+use traykit::{lerror, linfo};
 use util::clock_label;
 
 const USAGE: &str = "\
@@ -64,6 +64,14 @@ usage:
   luz reset                  put the screens' colours back (after a crash)";
 
 fn main() {
+    // Names the config folder, the log, the socket and the login entry, and
+    // opens the log; everything in traykit needs it first.
+    traykit::init(traykit::App {
+        name: "Luz",
+        id: "luz",
+        bundle_id: "com.kidchenko.luz",
+        summary: "Warm your screen at night",
+    });
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         None => tray(),
@@ -75,8 +83,7 @@ fn main() {
             });
         }
         Some(_) => {
-            util::attach_console();
-            log::init();
+            traykit::util::attach_console();
             std::process::exit(cli(&args));
         }
     }
@@ -249,7 +256,7 @@ fn status(cfg: &Config) -> String {
 /// the user first.
 #[cfg(windows)]
 pub fn elevate(arg: &str) -> Result<(), String> {
-    use util::{pcwstr, wide};
+    use traykit::util::{pcwstr, wide};
     use windows::core::PCWSTR;
     use windows::Win32::UI::Shell::ShellExecuteW;
     use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
@@ -275,7 +282,6 @@ pub fn elevate(arg: &str) -> Result<(), String> {
 }
 
 fn tray() {
-    log::init();
     linfo!(
         "--- Luz {} starting (pid {}) ---",
         env!("CARGO_PKG_VERSION"),
@@ -287,7 +293,7 @@ fn tray() {
     let signals = block_quit_signals();
 
     // A second launch pauses or resumes the running instance and exits.
-    let Some(signal) = single_instance::acquire() else {
+    let Some(signal) = traykit::single_instance::acquire() else {
         linfo!("another instance owns the tray; asked it to pause or resume, exiting");
         return;
     };

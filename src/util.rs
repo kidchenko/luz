@@ -100,44 +100,6 @@ pub fn span(secs: u64) -> String {
     }
 }
 
-/// Full path to the running executable, quoted for the Run key.
-#[cfg(windows)]
-pub fn exe_path_quoted() -> Option<String> {
-    let p = std::env::current_exe().ok()?;
-    Some(format!("\"{}\"", p.display()))
-}
-
-/// Borrow the parent terminal's console, so `luz status` and friends can
-/// print. A `windows_subsystem = "windows"` binary starts without one. Harmless
-/// when launched from Explorer, where there is no parent console to borrow.
-#[cfg(windows)]
-pub fn attach_console() {
-    use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
-    unsafe {
-        let _ = AttachConsole(ATTACH_PARENT_PROCESS);
-    }
-}
-
-#[cfg(not(windows))]
-pub fn attach_console() {}
-
-#[cfg(windows)]
-pub use win::*;
-
-#[cfg(windows)]
-mod win {
-    use windows::core::PCWSTR;
-
-    /// Null-terminated UTF-16. Keep the buffer alive while the PCWSTR is used.
-    pub fn wide(s: &str) -> Vec<u16> {
-        s.encode_utf16().chain(std::iter::once(0)).collect()
-    }
-
-    pub fn pcwstr(buf: &[u16]) -> PCWSTR {
-        PCWSTR(buf.as_ptr())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

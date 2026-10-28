@@ -9,10 +9,10 @@
 //! A DDC/CI call takes tens of milliseconds, sometimes more, so they all run
 //! on a thread of their own and the menu reads the last known levels.
 
-use crate::log::linfo;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use traykit::linfo;
 
 /// How often to read the levels again, to notice a monitor's own buttons or
 /// a monitor plugged in.
@@ -119,7 +119,7 @@ fn name(description: &str, n: usize) -> String {
 #[cfg(windows)]
 mod imp {
     use super::{from_percent, name, to_percent, Monitor};
-    use crate::log::lwarn;
+    use traykit::lwarn;
     use windows::core::BOOL;
     use windows::Win32::Devices::Display::{
         DestroyPhysicalMonitors, GetMonitorBrightness, GetNumberOfPhysicalMonitorsFromHMONITOR,

@@ -12,11 +12,11 @@
 //! most likely) is skipped and logged; the rest still work.
 
 use crate::app::UserEvent;
-use crate::log::{linfo, lwarn};
 use global_hotkey::hotkey::{Code, HotKey, Modifiers};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use tao::event_loop::EventLoopProxy;
 use tray_icon::menu::accelerator::Accelerator;
+use traykit::{linfo, lwarn};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Action {

@@ -66,10 +66,10 @@ pub struct Outcome {
 mod imp {
     use super::{identity, sane_base, tinted, Curve, Outcome, SIZE};
     use crate::color::Gains;
-    use crate::log::lwarn;
-    use crate::util::{pcwstr, wide};
     use std::collections::HashMap;
     use std::sync::Mutex;
+    use traykit::lwarn;
+    use traykit::util::{pcwstr, wide};
     use windows::core::PCWSTR;
     use windows::Win32::Foundation::ERROR_SUCCESS;
     use windows::Win32::Graphics::Gdi::{
@@ -364,8 +364,8 @@ mod imp {
 mod imp {
     use super::Outcome;
     use crate::color::Gains;
-    use crate::log::{linfo, lwarn};
     use std::sync::{Mutex, OnceLock};
+    use traykit::{linfo, lwarn};
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     enum Backend {
@@ -591,11 +591,11 @@ mod imp {
         use super::super::{identity, tinted, Curve, Outcome};
         use super::{resample, Mutex};
         use crate::color::Gains;
-        use crate::log::{linfo, lwarn};
         use std::fs::File;
         use std::io::{Seek, Write};
         use std::os::fd::{AsFd, FromRawFd};
         use std::time::{Duration, Instant};
+        use traykit::{linfo, lwarn};
         use wayland_client::protocol::wl_output::{self, WlOutput};
         use wayland_client::protocol::wl_registry::{self, WlRegistry};
         use wayland_client::{Connection, Dispatch, EventQueue, QueueHandle};
@@ -836,10 +836,9 @@ mod imp {
     /// Luz didn't get to. Brightness can't go through either.
     pub(super) mod night_light {
         use super::Mutex;
-        use crate::config::Config;
-        use crate::log::lwarn;
         use std::path::PathBuf;
         use std::process::Command;
+        use traykit::lwarn;
 
         #[derive(Clone, Copy, Debug, PartialEq)]
         pub enum Desktop {
@@ -983,7 +982,7 @@ mod imp {
                     Desktop::Gnome => "gnome-night-light.txt",
                     Desktop::Kde => "kde-night-light.txt",
                 };
-                Config::dir().map(|d| d.join(file))
+                traykit::dirs::config_dir().map(|d| d.join(file))
             }
         }
 

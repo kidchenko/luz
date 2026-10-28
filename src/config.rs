@@ -1,11 +1,12 @@
-//! Persisted settings, as JSON in `%APPDATA%\Luz\config.json` on Windows and
-//! `~/Library/Application Support/Luz/config.json` on macOS.
+//! Persisted settings, as JSON in `%APPDATA%\Luz\config.json` on Windows,
+//! `~/Library/Application Support/Luz/config.json` on macOS and
+//! `~/.config/luz/config.json` on Linux. traykit owns the file: where it
+//! lives, the BOM Notepad adds, and saving it safely.
 //!
 //! Edits on disk are picked up within a second, which is also how `luz
 //! location` reaches a copy already in the tray.
 
 use crate::color::{MAX_K, MIN_K};
-use crate::log::lerror;
 use crate::util::parse_clock;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -62,73 +63,33 @@ impl Default for Config {
 }
 
 impl Config {
-    #[cfg(windows)]
-    pub fn dir() -> Option<PathBuf> {
-        std::env::var_os("APPDATA").map(|a| PathBuf::from(a).join("Luz"))
-    }
-
-    #[cfg(target_os = "macos")]
-    pub fn dir() -> Option<PathBuf> {
-        std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Application Support/Luz"))
-    }
-
-    /// `$XDG_CONFIG_HOME/luz`, which is `~/.config/luz` unless set.
-    #[cfg(target_os = "linux")]
-    pub fn dir() -> Option<PathBuf> {
-        std::env::var_os("XDG_CONFIG_HOME")
-            .filter(|d| !d.is_empty())
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-            .map(|d| d.join("luz"))
-    }
-
     pub fn path() -> Option<PathBuf> {
-        Self::dir().map(|d| d.join("config.json"))
+        traykit::config::path()
     }
 
     pub fn modified() -> Option<std::time::SystemTime> {
-        std::fs::metadata(Self::path()?).ok()?.modified().ok()
+        traykit::config::modified()
     }
 
     /// `None` for missing or unparsable, so an editor caught mid-save changes
     /// nothing.
     pub fn reload() -> Option<Self> {
-        Self::parse(&std::fs::read_to_string(Self::path()?).ok()?).ok()
+        traykit::config::reload::<Self>().map(Self::sanitised)
     }
 
+    #[cfg(test)]
     fn parse(text: &str) -> Result<Self, serde_json::Error> {
-        // Notepad and PowerShell both like to write a BOM; serde_json does not.
-        let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-        serde_json::from_str::<Config>(text).map(Config::sanitised)
+        traykit::config::parse::<Self>(text).map(Self::sanitised)
     }
 
     /// Never fails: a missing or corrupt file yields defaults.
     pub fn load() -> Self {
-        let Some(path) = Self::path() else {
-            return Self::default();
-        };
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            return Self::default();
-        };
-        Self::parse(&text).unwrap_or_else(|e| {
-            lerror!(
-                "config at {} is unreadable ({e}); using defaults",
-                path.display()
-            );
-            Self::default()
-        })
+        traykit::config::load::<Self>().sanitised()
     }
 
     /// Temp file + rename, so an interrupted save never leaves half a file.
     pub fn save(&self) -> std::io::Result<()> {
-        let (Some(dir), Some(path)) = (Self::dir(), Self::path()) else {
-            return Err(std::io::Error::other("no config directory in environment"));
-        };
-        std::fs::create_dir_all(&dir)?;
-        let json = serde_json::to_string_pretty(self)?;
-        let tmp = path.with_extension("json.tmp");
-        std::fs::write(&tmp, json)?;
-        std::fs::rename(&tmp, &path)
+        traykit::config::save(self)
     }
 
     pub fn sanitised(mut self) -> Self {
